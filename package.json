@@ -1,0 +1,8 @@
+{
+  "name": "pescurt",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {"node": ">=22"},
+  "scripts": {"dev": "node --env-file-if-exists=.env server/local.js", "start": "node server/local.js", "test": "node --test"}
+}
