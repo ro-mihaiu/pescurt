@@ -38,7 +38,17 @@ Fișiere acceptate: PDF, JPG, PNG și WebP, până la 3 MB. Limita zilnică se a
 
 ## Stripe
 
-1. Creează prețurile în Stripe. Configurează câte un ID de preț pentru Premium lunar, Premium anual, Elev/student (preț recurent cu intervalul dorit) și Acces pe viață (plată unică). Prețurile publice se citesc din Stripe.
+1. Creează prețurile în RON în Stripe. Pagina afișează tarifele de mai jos și activează checkout-ul doar când ID-ul Stripe are aceeași monedă, sumă și perioadă. Pentru a schimba tarifele, actualizează [public/plans.js](public/plans.js) și setează ID-urile noilor prețuri Stripe.
+
+   | Plan | Tarif | Variabilă pentru ID-ul Stripe |
+   | --- | --- | --- |
+   | Premium lunar | 30 lei pe lună | `STRIPE_MONTHLY_PRICE_ID` |
+   | Premium anual | 300 lei pe an | `STRIPE_YEARLY_PRICE_ID` |
+   | Elev/student lunar | 20 lei pe lună | `STRIPE_STUDENT_MONTHLY_PRICE_ID` |
+   | Elev/student anual | 200 lei pe an | `STRIPE_STUDENT_YEARLY_PRICE_ID` |
+   | Acces pe viață | 500 lei, plată unică | `STRIPE_LIFETIME_PRICE_ID` |
+
+   `STRIPE_STUDENT_PRICE_ID` rămâne acceptat pentru recunoașterea abonamentelor existente și poate servi drept ID lunar dacă tariful său corespunde. Ambele opțiuni pentru elevi și studenți cer aceeași verificare înainte de plată.
 2. Completează `STRIPE_SECRET_KEY` și variabilele `STRIPE_*_PRICE_ID`. Începe cu chei, prețuri și webhookuri de test.
 3. Adaugă webhookul `https://pescurt.ro-mihaiu.xyz/api/billing/webhook` și setează secretul lui în `STRIPE_WEBHOOK_SECRET`. Abonează-l la:
    - `checkout.session.completed`, `checkout.session.async_payment_succeeded`
@@ -46,6 +56,14 @@ Fișiere acceptate: PDF, JPG, PNG și WebP, până la 3 MB. Limita zilnică se a
    - `charge.refunded`, `charge.dispute.created`, `charge.dispute.closed`
 4. Activează Stripe Customer Portal și anularea abonamentelor. Dezactivează schimbarea planurilor direct în portal, ca tariful de elev/student să rămână accesibil doar prin verificarea PeScurt.
 5. Testează plata, actualizarea planului prin webhook și anularea înainte să treci la cheile de producție. Checkout-ul și portalul sunt găzduite de Stripe.
+
+## Pagini legale
+
+Paginile publice sunt `/termeni`, `/confidentialitate` și `/cookies`. Completează `LEGAL_OPERATOR_NAME`, `LEGAL_OPERATOR_ADDRESS`, `LEGAL_OPERATOR_REGISTRATION` (dacă se aplică) și `LEGAL_CONTACT_EMAIL`. Înainte de activarea plăților, verifică textele din [public/legal.js](public/legal.js) și completează detaliile despre furnizor, condițiile de retragere, termenele de păstrare și transferurile de date pentru serviciile configurate efectiv. Site-ul folosește cookie-uri de sesiune și recuperare a parolei.
+
+## Publicare pe Bot-Hosting
+
+Importă repository-ul ca aplicație Node.js 22+ și pornește-l cu `npm start` sau `server/local.js`. Alege în panou portul alocat și setează aceeași valoare în `PORT` dacă panoul nu o setează automat. Atașează domeniul în panou, aplică în Cloudflare înregistrările afișate și setează `APP_URL=https://pescurt.ro-mihaiu.xyz`. Cheile se setează prin variabilele de mediu ale aplicației. Pentru ștergerea automată a documentelor justificative expirate, configurează apelul periodic descris în secțiunea Supabase.
 
 ## Publicare pe Vercel
 

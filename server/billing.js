@@ -1,3 +1,4 @@
+import { plans } from '../public/plans.js';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { appUrl, db, hasBilling, Problem, provider, query, rpc, uuid } from './services.js';
 
@@ -5,7 +6,8 @@ const env = process.env;
 const priceIds = {
   monthly: env.STRIPE_MONTHLY_PRICE_ID,
   yearly: env.STRIPE_YEARLY_PRICE_ID,
-  student: env.STRIPE_STUDENT_PRICE_ID,
+  studentMonthly: env.STRIPE_STUDENT_MONTHLY_PRICE_ID || env.STRIPE_STUDENT_PRICE_ID,
+  studentYearly: env.STRIPE_STUDENT_YEARLY_PRICE_ID,
   lifetime: env.STRIPE_LIFETIME_PRICE_ID
 };
 
@@ -23,12 +25,21 @@ async function stripe(path, fields, idempotency) {
   return response.json();
 }
 
-function validPrice(plan, price) {
+export function validPrice(plan, price) {
+  if (!Object.hasOwn(plans, plan) || plan === 'free') return false;
+  const {lei, interval} = plans[plan];
+  if (!price.active || price.currency !== 'ron' || price.unit_amount !== lei * 100) return false;
+  if (!interval) return price.type === 'one_time';
   const recurring = price.recurring;
-  return price.active && Number.isInteger(price.unit_amount) && price.unit_amount > 0 &&
-    (plan === 'lifetime' ? price.type === 'one_time' :
-      recurring?.usage_type === 'licensed' && (plan === 'student' ||
-        (recurring.interval_count === 1 && recurring.interval === (plan === 'yearly' ? 'year' : 'month'))));
+  return price.type === 'recurring' && recurring?.usage_type === 'licensed' &&
+    recurring.interval_count === 1 && recurring.interval === interval;
+}
+
+export function subscriptionPlan(priceId) {
+  if (!priceId) return undefined;
+  const checkoutPlan = Object.keys(priceIds).find(plan => plans[plan].interval && priceIds[plan] === priceId);
+  if (checkoutPlan) return plans[checkoutPlan].student ? 'student' : checkoutPlan;
+  if (priceId === env.STRIPE_STUDENT_PRICE_ID) return 'student';
 }
 
 let priceCache;
@@ -39,11 +50,7 @@ export async function prices() {
   const results = await Promise.allSettled(entries.map(async ([plan, id]) => {
     const price = await stripe('prices/' + encodeURIComponent(id));
     if (!validPrice(plan, price)) return [];
-    const intl = new Intl.NumberFormat('ro-RO', {style: 'currency', currency: price.currency});
-    const exponent = intl.resolvedOptions().maximumFractionDigits;
-    const stripeExponent = ['isk', 'ugx'].includes(price.currency) ? 2 : exponent;
-    const amount = price.unit_amount / 10 ** stripeExponent;
-    return [[plan, {amount: intl.format(amount), interval: price.recurring?.interval, count: price.recurring?.interval_count}]];
+    return [[plan, true]];
   }));
   const available = Object.fromEntries(results.flatMap(result => result.status === 'fulfilled' ? result.value : []));
   priceCache = {prices: available, expires: Date.now() + 60000};
@@ -73,7 +80,7 @@ export async function billing(action, user, input) {
   if (!Object.hasOwn(priceIds, plan) || !priceIds[plan] || !(await prices())[plan]) {
     throw new Problem(503, 'Tariful acestui plan nu este disponibil.');
   }
-  if (plan === 'student') {
+  if (plans[plan].student) {
     const approved = await db('student_requests' + query({user_id: 'eq.' + user.id, status: 'eq.approved', limit: '1'}));
     if (!approved.length) throw new Problem(403, 'Poți alege tariful de elev/student după aprobarea cererii.');
   }
@@ -140,7 +147,7 @@ export async function webhook(raw, signature) {
   if (event.type.startsWith('customer.subscription.')) {
     const latest = await stripe('subscriptions/' + encodeURIComponent(item.id));
     for (const line of latest.items.data) {
-      const plan = ['monthly', 'yearly', 'student'].find(name => priceIds[name] === line.price.id);
+      const plan = subscriptionPlan(line.price.id);
       if (!plan) continue;
       const active = ['active', 'trialing'].includes(latest.status) && !!line.current_period_end;
       const expiry = active ? new Date(line.current_period_end * 1000).toISOString() : null;

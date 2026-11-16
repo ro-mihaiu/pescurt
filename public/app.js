@@ -1,3 +1,6 @@
+import { plans, annualSaving } from './plans.js';
+import { legalCopy } from './legal.js';
+
 const root = document.querySelector('#app');
 const icons = {
   home: '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
@@ -23,14 +26,16 @@ const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
 const safe = value => String(value ?? '').replace(/[&<>"']/g, char => (
   {'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[char]
 ));
-const names = {free: 'Gratis', monthly: 'Premium lunar', yearly: 'Premium anual', student: 'Elev / student', lifetime: 'Acces pe viață'};
+const names = Object.fromEntries(Object.entries(plans).map(([id, plan]) => [id, plan.name]));
+names.student = 'Elev / student';
 const actionNames = {summary: 'Rezumat', explanation: 'Explică-mi', questions: 'Creează întrebări'};
 const labels = {pending: 'În așteptarea verificării', approved: 'Aprobat', rejected: 'Respins'};
 const routeNames = {
   '/': 'Acasă', '/preturi': 'Prețuri', '/login': 'Autentificare', '/creeaza-cont': 'Creează cont',
   '/recuperare': 'Recuperare parolă', '/parola-noua': 'Parolă nouă', '/confirma': 'Confirmare email',
   '/acasa': 'Acasă', '/caiet': 'Caiet', '/adauga': 'Adaugă document', '/profil': 'Profil',
-  '/admin': 'Verificare elevi și studenți'
+  '/admin': 'Verificare elevi și studenți', '/termeni': 'Termeni și condiții',
+  '/confidentialitate': 'Politica de confidențialitate', '/cookies': 'Politica de cookie-uri'
 };
 let config = {auth: false, ai: false, prices: {}, zone: 'Europe/Bucharest'};
 let auth = {};
@@ -78,7 +83,12 @@ async function api(path, data = {}, download = false) {
   return result;
 }
 
-const brand = `<span class="brand-mark"><img src="/icon.svg" alt="" width="36" height="36"></span><span>PeScurt<span class="brand-dot">.</span></span>`;
+const brand = '<img src="/logo.svg" alt="PeScurt" width="139" height="36">';
+const legalLinks = `<nav class="legal-links" aria-label="Informații legale">
+  <a href="/termeni" data-link>Termeni și condiții</a>
+  <a href="/confidentialitate" data-link>Confidențialitate</a>
+  <a href="/cookies" data-link>Cookie-uri</a>
+</nav>`;
 const buttonLink = (href, label, style = 'primary', symbol = '') =>
   `<a class="button ${style}" href="${href}" data-link>${symbol ? icon(symbol) : ''}${label}</a>`;
 const notice = (text, type = '') => `<p class="notice ${type}" role="${type === 'error' ? 'alert' : 'status'}">${safe(text)}</p>`;
@@ -103,8 +113,10 @@ function frame(path, content) {
     </nav>
   </div></header>
   <main class="shell ${signed ? 'signed' : ''}" id="main" tabindex="-1">${content}</main>
-  ${signed ? `<nav class="bottom-nav" aria-label="Caietul tău">${navigationLinks}</nav>`
-    : `<footer class="site-footer"><div><a class="brand" href="/" data-link>${brand}</a><span>Caietul tău digital</span><a href="/preturi" data-link>Vezi planurile ${icon('arrow')}</a></div></footer>`}`;
+  <footer class="site-footer ${signed ? 'signed-footer' : ''}">
+    <div><a class="brand" href="${signed ? '/acasa' : '/'}" data-link>${brand}</a>${legalLinks}</div>
+  </footer>
+  ${signed ? `<nav class="bottom-nav" aria-label="Caietul tău">${navigationLinks}</nav>` : ''}`;
 }
 
 function landing() {
@@ -168,6 +180,7 @@ function authForm(path) {
         <button class="button primary full" type="submit">${signup ? 'Creează cont' : forgot ? 'Trimite linkul' : reset ? 'Salvează parola' : 'Autentifică-te'}</button>
       </fieldset><div data-feedback aria-live="polite"></div>
     </form>
+    ${signup ? '<p class="signup-legal">Înainte să creezi contul, citește <a href="/termeni" data-link>Termenii și condițiile</a> și <a href="/confidentialitate" data-link>Politica de confidențialitate</a>.</p>' : ''}
     <div class="auth-switch">${signup ? 'Ai deja cont? <a href="/login" data-link>Intră în cont</a>' :
       forgot || reset ? '<a href="' + (reset ? '/recuperare' : '/login') + '" data-link>' + (reset ? 'Cere alt link' : 'Înapoi la autentificare') + '</a>' :
       'Nu ai cont? <a href="/creeaza-cont" data-link>Creează cont</a>'}</div>
@@ -175,37 +188,44 @@ function authForm(path) {
 }
 
 function planPage() {
-  const descriptions = {
-    free: 'Rezumat, explicații, întrebări și caietul tău digital.',
-    monthly: 'Toate funcțiile de învățare, cu facturare lunară.',
-    yearly: 'Toate funcțiile de învățare, cu facturare anuală.',
-    student: 'Tarif redus după verificarea manuală a unui document justificativ.',
-    lifetime: 'Rezumat, explicații, întrebări și caiet digital, cu o singură plată.',
-  };
-  const periods = {month: ['lună','luni'], year:['an','ani'], week:['săptămână','săptămâni'], day:['zi','zile']};
-  const order = ['free','monthly','yearly','student','lifetime'];
   return `<section class="page-title centered"><h1>Planuri PeScurt</h1><p>Toate planurile includ rezumate, explicații și întrebări de recapitulare.</p></section>
-  <section class="plans" aria-label="Planuri disponibile">${order.map(plan => {
-    const price = config.prices[plan];
-    const period = price?.interval && periods[price.interval];
-    const billingPeriod = period ? (price.count === 1 ? ' / ' + period[0] : ' / ' + price.count + ' ' + period[1]) : '';
+  <section class="plans" aria-label="Planuri disponibile">${Object.entries(plans).map(([id, plan]) => {
+    const billingPeriod = plan.interval === 'year' ? ' / an' : plan.interval === 'month' ? ' / lună' : '';
+    const saving = annualSaving(plan);
     let cta;
-    if (plan === 'free') cta = buttonLink(auth.signedIn ? '/acasa' : '/creeaza-cont', 'Folosește Gratis', 'primary');
-    else if (plan === 'student' && account?.student?.status !== 'approved') {
+    if (id === 'free') cta = buttonLink(auth.signedIn ? '/acasa' : '/creeaza-cont', 'Folosește Gratis');
+    else if (plan.student && account?.student?.status !== 'approved') {
       cta = buttonLink(auth.signedIn ? '/profil#student' : '/login?urmator=student', 'Verifică statutul', 'secondary');
-    } else if (!price) cta = '<span class="unavailable">Tarif indisponibil momentan</span>';
+    } else if (!config.prices[id]) cta = '<span class="unavailable">Plată indisponibilă momentan</span>';
     else if (!auth.signedIn) cta = buttonLink('/login?urmator=preturi','Intră în cont','secondary');
-    else cta = `<form data-action="billing/checkout"><input type="hidden" name="plan" value="${plan}"><button class="button secondary full">Alege planul</button><div data-feedback></div></form>`;
-    return `<article class="paper-panel plan ${plan === 'free' ? 'free-plan' : ''}">
-      <h2>${names[plan]}</h2>
-      <div class="plan-price">${plan === 'free' ? '0 lei' : safe(price?.amount || '—')}<small>${safe(billingPeriod)}</small></div>
-      <p>${descriptions[plan]}</p>
-      <ul><li>${icon('check')} ${plan === 'free' ? 2 : 5} documente procesate pe zi</li>
-      <li>${icon('check')} ${plan === 'free' ? 'Fără plată' : plan === 'lifetime' ? 'Fără reînnoire automată' : plan === 'student' ? 'Doar după aprobare' : 'Anulare din portalul de facturare'}</li></ul>
+    else cta = `<form data-action="billing/checkout"><input type="hidden" name="plan" value="${id}"><button class="button secondary full">Alege planul</button><div data-feedback></div></form>`;
+    return `<article class="paper-panel plan ${id === 'free' ? 'free-plan' : ''}">
+      <h2>${plan.name}</h2>
+      <div class="plan-price">${plan.lei} lei<small>${billingPeriod}</small></div>
+      ${saving ? `<p class="plan-saving"><strong>Economisești ${saving} lei</strong> față de 12 plăți lunare.</p>` : ''}
+      <p>${plan.description}</p>
+      <ul><li>${icon('check')} ${id === 'free' ? 2 : 5} documente procesate pe zi</li>
+      <li>${icon('check')} ${id === 'free' ? 'Fără plată' : id === 'lifetime' ? 'Fără reînnoire automată' : 'Anulare din portalul de facturare'}</li>
+      ${plan.student ? `<li>${icon('check')} Doar după aprobare</li>` : ''}</ul>
       <div class="plan-action">${cta}</div>
     </article>`;
   }).join('')}</section>
   <div class="plan-foot">${icon('lock')} ${config.billing ? 'Plățile se fac în pagina securizată Stripe.' : 'Plățile așteaptă configurarea procesatorului Stripe.'}</div>`;
+}
+
+function legalPage(path) {
+  const policy = legalCopy[path];
+  const operator = config.legal || {};
+  const details = path !== '/cookies' ? `<section><h2>Operator și contact</h2>
+    ${operator.name ? `<p><strong>${safe(operator.name)}</strong>${operator.registration ? ' · ' + safe(operator.registration) : ''}</p>` : ''}
+    ${operator.address ? `<p>${safe(operator.address)}</p>` : ''}
+    ${operator.email ? `<p><a class="inline-link" href="mailto:${safe(operator.email)}">${safe(operator.email)}</a></p>` : ''}
+    ${operator.name && operator.address && operator.email ? '' : notice('Informațiile despre operator și datele de contact sunt în curs de completare.')}</section>` : '';
+  return `<article class="paper-panel form-panel legal-page"><h1>${routeNames[path]}</h1>
+    <p class="muted">${policy.intro}</p>
+    ${details}
+    ${policy.sections.map(([title, copy]) => `<section><h2>${title}</h2>${copy}</section>`).join('')}
+  </article>`;
 }
 
 function usageCard() {
@@ -429,6 +449,7 @@ async function show(focus = false) {
   } else if (needsAccount && !auth.signedIn) {
     return go('/login', true);
   } else if (path === '/') frame(path, landing());
+  else if (Object.hasOwn(legalCopy, path)) frame(path, legalPage(path));
   else if (['/login','/creeaza-cont','/recuperare','/parola-noua'].includes(path)) frame(path, authForm(path));
   else if (!needsAccount && path !== '/preturi') frame(path, empty('book','Pagina nu a fost găsită','Alege o pagină din meniu.',buttonLink('/','Mergi la Acasă')));
   else {

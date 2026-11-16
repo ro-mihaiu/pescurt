@@ -238,3 +238,19 @@ details summary { font-weight: 740; color: var(--green); cursor: pointer; min-he
   .usage { padding: 22px; }
   .document-layout { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
 }
+
+.site-footer .brand img { width: auto; height: 28px; }
+.site-footer .legal-links { display: flex; flex-wrap: wrap; column-gap: 16px; margin-left: auto; }
+.site-footer .legal-links a { display: inline-flex; align-items: center; min-height: 44px; margin-left: 0; }
+.legal-page { max-width: 780px; margin-inline: auto; }
+.legal-page h1 { font-size: clamp(1.8rem, 6vw, 3.2rem); }
+.legal-page section { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 14px; }
+.legal-page section p, .legal-page section ul { margin-top: 8px; }
+.legal-page li { overflow-wrap: anywhere; }
+.legal-page a, .signup-legal a { text-decoration: underline; text-underline-offset: 3px; }
+.auth-card .signup-legal { margin: 14px 0 0; font-size: .83rem; color: var(--muted); }
+.plan .plan-saving { margin-bottom: 6px; color: var(--green); }
+@media (max-width: 799px) {
+  .signed { padding-bottom: 38px; }
+  .signed-footer { padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
+}

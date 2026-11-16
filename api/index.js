@@ -10,6 +10,11 @@ const notebookActions = new Set(['list', 'get', 'add', 'original', 'delete', 'pr
 const adminActions = new Set(['list', 'proof', 'decide', 'remove', 'purge']);
 const extensions = {'application/pdf': 'pdf', 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp'};
 
+function legalDetails() {
+  const { LEGAL_OPERATOR_NAME, LEGAL_OPERATOR_ADDRESS, LEGAL_OPERATOR_REGISTRATION, LEGAL_CONTACT_EMAIL } = process.env;
+  return {name: LEGAL_OPERATOR_NAME, address: LEGAL_OPERATOR_ADDRESS, registration: LEGAL_OPERATOR_REGISTRATION, email: LEGAL_CONTACT_EMAIL};
+}
+
 async function readBody(req, limit) {
   if (Number(req.headers['content-length']) > limit) throw new Problem(413, 'Fișierul e prea mare. Limita este de 3 MB.');
   const chunks = [];
@@ -66,7 +71,7 @@ export default async function handler(req, res) {
   const route = group + '/' + (action || '');
   try {
     if (req.method === 'GET' && group === 'config' && !action) {
-      return write(res, 200, {auth: hasAuth, ai: hasAI, billing: hasBilling, prices: await prices(), zone});
+      return write(res, 200, {auth: hasAuth, ai: hasAI, billing: hasBilling, prices: await prices(), zone, legal: legalDetails()});
     }
     if (route === 'jobs/student-retention' && ['GET','POST'].includes(req.method)) {
       if (!hasAuth || !retentionAuthorized(req.headers.authorization)) throw new Problem(403, 'Acces interzis.');

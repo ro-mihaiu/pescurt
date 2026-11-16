@@ -6,6 +6,9 @@ import { securityHeaders } from './security.js';
 const assets = {
   '/style.css': 'text/css',
   '/app.js': 'text/javascript',
+  '/plans.js': 'text/javascript',
+  '/legal.js': 'text/javascript',
+  '/logo.svg': 'image/svg+xml',
   '/icon.svg': 'image/svg+xml'
 };
 createServer(async (req, res) => {

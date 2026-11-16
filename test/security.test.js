@@ -28,7 +28,8 @@ test('uploads check file bytes and refuse unsupported and oversized payloads', (
 
 test('unconfigured server describes availability and rejects cross-origin writes', async t => {
   const oldEnv = Object.fromEntries(['APP_URL','SUPABASE_URL','SUPABASE_ANON_KEY','SUPABASE_SERVICE_ROLE_KEY',
-    'OPENAI_API_KEY','OPENAI_MODEL','STRIPE_SECRET_KEY','STRIPE_WEBHOOK_SECRET'].map(key => [key, process.env[key]]));
+    'OPENAI_API_KEY','OPENAI_MODEL','STRIPE_SECRET_KEY','STRIPE_WEBHOOK_SECRET',
+    'LEGAL_OPERATOR_NAME','LEGAL_OPERATOR_ADDRESS','LEGAL_OPERATOR_REGISTRATION','LEGAL_CONTACT_EMAIL'].map(key => [key, process.env[key]]));
   for (const key of Object.keys(oldEnv)) delete process.env[key];
   const {spawn} = await import('node:child_process');
   const portServer = createServer();
@@ -47,7 +48,7 @@ test('unconfigured server describes availability and rejects cross-origin writes
   const config = await fetch(base + '/api/config');
   assert.equal(config.status, 200);
   assert.equal(config.headers.get('cache-control'), 'private, no-store');
-  assert.deepEqual(await config.json(), {auth: false, ai: false, billing: false, prices: {}, zone: 'Europe/Bucharest'});
+  assert.deepEqual(await config.json(), {auth: false, ai: false, billing: false, prices: {}, zone: 'Europe/Bucharest', legal: {}});
   const post = (route, origin) => fetch(base + '/api/' + route, {
     method: 'POST', headers: {origin, 'Content-Type':'application/json'}, body:'{}'
   });
