@@ -20,19 +20,11 @@ Deschide <http://localhost:3000>. Paginile publice funcționează fără conturi
 4. Configurează linkurile din șabloane. Pagina de confirmare cere o apăsare înainte de a consuma tokenul.
    - **Confirm signup:** `{{ .SiteURL }}/confirma?type=email&token_hash={{ .TokenHash }}`
    - **Reset password:** `{{ .SiteURL }}/confirma?type=recovery&token_hash={{ .TokenHash }}`
-5. După ce administratorul își creează și confirmă contul, acordă dreptul folosind UUID-ul contului din Authentication → Users.
-
-```sql
-insert into public.admins (user_id) values ('UUID-UL-CONTULUI');
-```
-
-Administratorii intră în **Profil → Administrare verificări**. Acel rol permite descărcarea documentului justificativ, aprobarea, respingerea cu motiv și ștergerea fișierului.
-
-`STUDENT_PROOF_RETENTION_DAYS` (implicit 30) se aplică cererilor noi. După termen, descărcarea se blochează imediat. Cronul Vercel încearcă zilnic să șteargă documentele expirate și închide cererile expirate încă nesoluționate. Configurează `CRON_SECRET` cu o valoare aleatorie puternică. Pentru alt host, apelează periodic `/api/jobs/student-retention` cu headerul `Authorization: Bearer <CRON_SECRET>`. Administratorul poate porni și manual operația. Decizia se păstrează separat de fișier.
+Cererile de verificare trimise înainte de dezactivarea funcției rămân în stocare privată. `STUDENT_PROOF_RETENTION_DAYS` (implicit 30) se aplică cererilor existente; cronul Vercel șterge automat documentele expirate. Pentru alt host, configurează un apel periodic la `/api/jobs/student-retention` cu headerul `Authorization: Bearer <CRON_SECRET>`.
 
 ## OpenAI și limite
 
-Completează `OPENAI_API_KEY` și `OPENAI_MODEL` cu un model Responses API care acceptă imagini și PDF-uri. Aplicația trimite doar materialul de studiu la cererea utilizatorului. Documentele justificative rămân în fluxul de verificare manuală.
+Completează `OPENAI_API_KEY` și `OPENAI_MODEL` cu un model Responses API care acceptă imagini și PDF-uri. Aplicația trimite doar materialul de studiu la cererea utilizatorului. 
 
 Fișiere acceptate: PDF, JPG, PNG și WebP, până la 3 MB. Limita zilnică se aplică pe cont, la prima procesare reușită a fiecărui document în ziua respectivă. Acțiunile suplimentare pentru același document în aceeași zi și consultarea rezultatelor salvate nu consumă un loc nou. Ștergerea unui document procesat nu recuperează locul. Fusul orar se setează prin `APP_TIME_ZONE` (implicit `Europe/Bucharest`).
 
@@ -42,7 +34,7 @@ PeScurt este gratuit și permite procesarea a maximum 2 documente pe zi pentru f
 
 ## Pagini legale
 
-Paginile publice sunt `/termeni`, `/confidentialitate` și `/cookies`. Completează `LEGAL_OPERATOR_NAME`, `LEGAL_OPERATOR_ADDRESS`, `LEGAL_OPERATOR_REGISTRATION` (dacă se aplică) și `LEGAL_CONTACT_EMAIL`. Înainte de activarea plăților, verifică textele din [public/legal.js](public/legal.js) și completează detaliile despre furnizor, condițiile de retragere, termenele de păstrare și transferurile de date pentru serviciile configurate efectiv. Site-ul folosește cookie-uri de sesiune și recuperare a parolei.
+Paginile publice sunt `/termeni`, `/confidentialitate` și `/cookies`. Completează `LEGAL_OPERATOR_NAME`, `LEGAL_OPERATOR_ADDRESS`, `LEGAL_OPERATOR_REGISTRATION` (dacă se aplică) și `LEGAL_CONTACT_EMAIL`. Verifică textele din [public/legal.js](public/legal.js) și completează detaliile operatorului și informațiile despre serviciile configurate efectiv. Site-ul folosește cookie-uri de sesiune și recuperare a parolei.
 
 ## Publicare pe Bot-Hosting
 
