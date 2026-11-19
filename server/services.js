@@ -4,7 +4,6 @@ export const zone = env.APP_TIME_ZONE || 'Europe/Bucharest';
 export const dayKey = () => new Intl.DateTimeFormat('sv-SE', {timeZone: zone}).format(new Date());
 export const hasAuth = !!(env.SUPABASE_URL && env.SUPABASE_ANON_KEY && env.SUPABASE_SERVICE_ROLE_KEY);
 export const hasAI = !!(env.OPENAI_API_KEY && env.OPENAI_MODEL);
-export const hasBilling = !!(env.APP_URL && env.STRIPE_SECRET_KEY && env.STRIPE_WEBHOOK_SECRET && hasAuth);
 
 export class Problem extends Error {
   constructor(status, message) {
