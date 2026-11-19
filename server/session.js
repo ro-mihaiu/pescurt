@@ -1,3 +1,4 @@
+import { createHash, randomBytes } from 'node:crypto';
 import { appUrl, auth, hasAuth, Problem, ProviderError, textField } from './services.js';
 
 function readCookies(req) {
@@ -59,6 +60,52 @@ function passwordField(value, min = 8) {
     throw new Problem(400, 'Verifică parola. Pentru o parolă nouă, folosește cel puțin 8 caractere și maximum 72 de octeți.');
   }
   return value;
+}
+
+export function startGoogleOAuth(res) {
+  if (!hasAuth) throw new Problem(503, 'Autentificarea așteaptă configurarea serviciului de conturi.');
+  const verifier = randomBytes(32).toString('base64url');
+  const challenge = createHash('sha256').update(verifier).digest('base64url');
+  const authorize = new URL('/auth/v1/authorize', process.env.SUPABASE_URL);
+  authorize.searchParams.set('provider', 'google');
+  authorize.searchParams.set('redirect_to', new URL('/api/auth/callback', appUrl).toString());
+  authorize.searchParams.set('code_challenge', challenge);
+  authorize.searchParams.set('code_challenge_method', 's256');
+  authorize.searchParams.set('apikey', process.env.SUPABASE_ANON_KEY);
+  res.statusCode = 302;
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Set-Cookie', cookie('ps_pkce', verifier, 600));
+  res.setHeader('Location', authorize.toString());
+  res.end();
+}
+
+export async function googleOAuthCallback(req, res) {
+  const url = new URL(req.url, appUrl);
+  const cookiesInRequest = readCookies(req);
+  const prefix = appUrl.startsWith('https:') ? '__Host-' : '';
+  const verifier = cookiesInRequest[prefix + 'ps_pkce'];
+  const code = url.searchParams.get('code');
+  if (!hasAuth || !code || !verifier || url.searchParams.has('error')) {
+    res.statusCode = 303;
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Set-Cookie', cookie('ps_pkce', '', 0));
+    res.setHeader('Location', '/login?oauth=google');
+    return res.end();
+  }
+  try {
+    const data = await auth('token?grant_type=pkce', 'POST', {auth_code: code, code_verifier: verifier});
+    writeSession(res, data);
+    res.statusCode = 303;
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Location', '/acasa');
+    res.end();
+  } catch (error) {
+    res.statusCode = 303;
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Set-Cookie', cookie('ps_pkce', '', 0));
+    res.setHeader('Location', '/login?oauth=google');
+    res.end();
+  }
 }
 
 export async function publicAuth(action, input, res) {
