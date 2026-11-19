@@ -254,3 +254,7 @@ details summary { font-weight: 740; color: var(--green); cursor: pointer; min-he
   .signed { padding-bottom: 38px; }
   .signed-footer { padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
 }
+
+.donation-card { max-width: 620px; margin: 0 auto; padding: 30px; text-align: center; }
+.donation-card > .tile { margin: 0 auto 14px; }
+.donation-card .button { margin-top: 10px; }
