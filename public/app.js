@@ -165,6 +165,7 @@ function authForm(path) {
     <h1>${heading}</h1><p class="muted">${description}</p>
     ${!config.auth ? notice(configError || 'Autentificarea așteaptă conectarea serviciului de conturi.') :
       reset && !auth.recovery ? notice('Deschide linkul de resetare din email sau cere unul nou.', 'error') : ''}
+    ${new URLSearchParams(location.search).get('oauth') === 'google' ? notice('Autentificarea Google nu este configurată sau a eșuat. Verifică setările Google din Supabase.', 'error') : ''}
     <form data-action="${signup ? 'auth/signup' : forgot ? 'auth/forgot' : reset ? 'auth/update' : 'auth/login'}">
       <fieldset ${disabled ? 'disabled' : ''}>
         ${signup ? '<label>Nume<input name="name" autocomplete="name" maxlength="80" required placeholder="Numele tău"></label>' : ''}
@@ -175,6 +176,7 @@ function authForm(path) {
         <button class="button primary full" type="submit">${signup ? 'Creează cont' : forgot ? 'Trimite linkul' : reset ? 'Salvează parola' : 'Autentifică-te'}</button>
       </fieldset><div data-feedback aria-live="polite"></div>
     </form>
+    ${!forgot && !reset ? '<div class="auth-oauth"><span>sau</span><a class="button secondary full google-button" href="/api/auth/google"><span class="google-mark" aria-hidden="true">G</span>Continuă cu Google</a></div>' : ''}
     ${signup ? '<p class="signup-legal">Înainte să creezi contul, citește <a href="/termeni" data-link>Termenii și condițiile</a> și <a href="/confidentialitate" data-link>Politica de confidențialitate</a>.</p>' : ''}
     <div class="auth-switch">${signup ? 'Ai deja cont? <a href="/login" data-link>Intră în cont</a>' :
       forgot || reset ? '<a href="' + (reset ? '/recuperare' : '/login') + '" data-link>' + (reset ? 'Cere alt link' : 'Înapoi la autentificare') + '</a>' :
