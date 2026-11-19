@@ -95,6 +95,8 @@ export async function googleOAuthCallback(req, res) {
   try {
     const data = await auth('token?grant_type=pkce', 'POST', {auth_code: code, code_verifier: verifier});
     writeSession(res, data);
+    const sessionCookies = res.getHeader('Set-Cookie');
+    res.setHeader('Set-Cookie', [...(Array.isArray(sessionCookies) ? sessionCookies : [sessionCookies]), cookie('ps_pkce', '', 0)]);
     res.statusCode = 303;
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Location', '/acasa');
