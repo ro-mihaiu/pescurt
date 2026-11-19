@@ -33,20 +33,6 @@ create unique index one_open_student_request on public.student_requests (user_id
   where status in ('pending', 'approved');
 create index student_expiration on public.student_requests (expires_at) where file_type is not null;
 
-create table public.billing_customers (
-  user_id uuid primary key references auth.users on delete cascade,
-  customer_id text not null unique
-);
-create table public.entitlements (
-  stripe_id text primary key,
-  user_id uuid not null references auth.users on delete cascade,
-  plan text not null check (plan in ('monthly', 'yearly', 'student', 'lifetime')),
-  active boolean not null,
-  expires_at timestamptz,
-  observed_at timestamptz not null
-);
-create index entitlement_owner on public.entitlements (user_id);
-
 create table public.daily_documents (
   user_id uuid not null references auth.users on delete cascade,
   day date not null,
@@ -66,15 +52,13 @@ create index processing_jobs_owner on public.processing_jobs (user_id);
 alter table public.admins enable row level security;
 alter table public.documents enable row level security;
 alter table public.student_requests enable row level security;
-alter table public.billing_customers enable row level security;
-alter table public.entitlements enable row level security;
 alter table public.daily_documents enable row level security;
 alter table public.processing_jobs enable row level security;
 
-revoke all on public.admins, public.documents, public.student_requests, public.billing_customers,
-  public.entitlements, public.daily_documents, public.processing_jobs from anon, authenticated;
+revoke all on public.admins, public.documents, public.student_requests,
+  public.daily_documents, public.processing_jobs from anon, authenticated;
 grant select, insert, update, delete on public.admins, public.documents, public.student_requests,
-  public.billing_customers, public.entitlements, public.daily_documents, public.processing_jobs to service_role;
+  public.daily_documents, public.processing_jobs to service_role;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types) values
   ('study-documents', 'study-documents', false, 3145728, array['application/pdf','image/jpeg','image/png','image/webp']),
@@ -86,17 +70,9 @@ create policy pescurt_private_objects on storage.objects as restrictive for all 
   with check (bucket_id not in ('study-documents','student-proofs'));
 
 create function public.current_plan(p_user uuid) returns text
-language sql stable set search_path = '' as $$
-  select coalesce((
-    select plan from public.entitlements
-    where user_id = p_user and active and (expires_at is null or expires_at > now())
-      and (plan <> 'student' or exists (
-        select 1 from public.student_requests where user_id = p_user and status = 'approved'
-      ))
-    order by case plan when 'lifetime' then 0 when 'yearly' then 1 when 'monthly' then 2 else 3 end
-    limit 1
-  ), 'free');
-$$;
+language sql immutable set search_path = '' as $
+  select 'free'::text;
+$;
 
 create function public.account_usage(p_user uuid, p_day date) returns jsonb
 language sql stable set search_path = '' as $$
@@ -171,17 +147,9 @@ begin
 end;
 $$;
 
-create function public.sync_entitlement(p_id text, p_user uuid, p_plan text, p_active boolean, p_expires timestamptz, p_observed timestamptz)
-returns void language sql set search_path = '' as $$
-  insert into public.entitlements values (p_id, p_user, p_plan, p_active, p_expires, p_observed)
-  on conflict (stripe_id) do update set active = excluded.active, plan = excluded.plan,
-    expires_at = excluded.expires_at, observed_at = excluded.observed_at
-  where entitlements.user_id = excluded.user_id and entitlements.observed_at <= excluded.observed_at;
-$$;
-
 revoke execute on function public.current_plan(uuid), public.account_usage(uuid,date),
   public.begin_processing(uuid,uuid,date,text,uuid), public.finish_processing(uuid,uuid,uuid,text,text),
-  public.mark_document_deleting(uuid,uuid), public.sync_entitlement(text,uuid,text,boolean,timestamptz,timestamptz)
+  public.mark_document_deleting(uuid,uuid)
   from public, anon, authenticated;
 grant execute on function public.current_plan(uuid), public.account_usage(uuid,date),
   public.begin_processing(uuid,uuid,date,text,uuid), public.finish_processing(uuid,uuid,uuid,text,text),
