@@ -10,7 +10,7 @@ npm run dev
 npm test
 ```
 
-Deschide <http://localhost:3000>. Paginile publice funcționează fără conturi externe. Pentru a folosi caietul și profilul ai nevoie de Supabase. Salvarea documentelor funcționează independent de procesarea AI și de abonamente.
+Deschide <http://localhost:3000>. Paginile publice funcționează fără conturi externe. Pentru a folosi caietul și profilul ai nevoie de Supabase. Salvarea documentelor funcționează independent de procesarea AI.
 
 ## Supabase
 
@@ -26,7 +26,7 @@ Deschide <http://localhost:3000>. Paginile publice funcționează fără conturi
 insert into public.admins (user_id) values ('UUID-UL-CONTULUI');
 ```
 
-Administratorii intră în **Profil → Administrare verificări**. Acel rol permite descărcarea documentului justificativ, aprobarea, respingerea cu motiv și ștergerea fișierului. Aprobarea deblochează tariful redus. Planul devine activ după confirmarea plății.
+Administratorii intră în **Profil → Administrare verificări**. Acel rol permite descărcarea documentului justificativ, aprobarea, respingerea cu motiv și ștergerea fișierului.
 
 `STUDENT_PROOF_RETENTION_DAYS` (implicit 30) se aplică cererilor noi. După termen, descărcarea se blochează imediat. Cronul Vercel încearcă zilnic să șteargă documentele expirate și închide cererile expirate încă nesoluționate. Configurează `CRON_SECRET` cu o valoare aleatorie puternică. Pentru alt host, apelează periodic `/api/jobs/student-retention` cu headerul `Authorization: Bearer <CRON_SECRET>`. Administratorul poate porni și manual operația. Decizia se păstrează separat de fișier.
 
@@ -36,26 +36,9 @@ Completează `OPENAI_API_KEY` și `OPENAI_MODEL` cu un model Responses API care 
 
 Fișiere acceptate: PDF, JPG, PNG și WebP, până la 3 MB. Limita zilnică se aplică pe cont, la prima procesare reușită a fiecărui document în ziua respectivă. Acțiunile suplimentare pentru același document în aceeași zi și consultarea rezultatelor salvate nu consumă un loc nou. Ștergerea unui document procesat nu recuperează locul. Fusul orar se setează prin `APP_TIME_ZONE` (implicit `Europe/Bucharest`).
 
-## Stripe
+## Donații
 
-1. Creează prețurile în RON în Stripe. Pagina afișează tarifele de mai jos și activează checkout-ul doar când ID-ul Stripe are aceeași monedă, sumă și perioadă. Pentru a schimba tarifele, actualizează [public/plans.js](public/plans.js) și setează ID-urile noilor prețuri Stripe.
-
-   | Plan | Tarif | Variabilă pentru ID-ul Stripe |
-   | --- | --- | --- |
-   | Premium lunar | 30 lei pe lună | `STRIPE_MONTHLY_PRICE_ID` |
-   | Premium anual | 300 lei pe an | `STRIPE_YEARLY_PRICE_ID` |
-   | Elev/student lunar | 20 lei pe lună | `STRIPE_STUDENT_MONTHLY_PRICE_ID` |
-   | Elev/student anual | 200 lei pe an | `STRIPE_STUDENT_YEARLY_PRICE_ID` |
-   | Acces pe viață | 500 lei, plată unică | `STRIPE_LIFETIME_PRICE_ID` |
-
-   `STRIPE_STUDENT_PRICE_ID` rămâne acceptat pentru recunoașterea abonamentelor existente și poate servi drept ID lunar dacă tariful său corespunde. Ambele opțiuni pentru elevi și studenți cer aceeași verificare înainte de plată.
-2. Completează `STRIPE_SECRET_KEY` și variabilele `STRIPE_*_PRICE_ID`. Începe cu chei, prețuri și webhookuri de test.
-3. Adaugă webhookul `https://pescurt.ro-mihaiu.xyz/api/billing/webhook` și setează secretul lui în `STRIPE_WEBHOOK_SECRET`. Abonează-l la:
-   - `checkout.session.completed`, `checkout.session.async_payment_succeeded`
-   - `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `customer.subscription.paused`, `customer.subscription.resumed`
-   - `charge.refunded`, `charge.dispute.created`, `charge.dispute.closed`
-4. Activează Stripe Customer Portal și anularea abonamentelor. Dezactivează schimbarea planurilor direct în portal, ca tariful de elev/student să rămână accesibil doar prin verificarea PeScurt.
-5. Testează plata, actualizarea planului prin webhook și anularea înainte să treci la cheile de producție. Checkout-ul și portalul sunt găzduite de Stripe.
+PeScurt este gratuit și permite procesarea a maximum 2 documente pe zi pentru fiecare cont. Dacă vrei să susții proiectul, poți face o donație sau poți vedea produsele disponibile în magazinul Ko-fi: <https://ko-fi.com/ro_mihaiu>. Donațiile sunt voluntare și nu schimbă limita sau funcțiile contului. Plățile donațiilor sunt gestionate direct de Ko-fi; PeScurt nu colectează și nu stochează date de card.
 
 ## Pagini legale
 
@@ -65,8 +48,12 @@ Paginile publice sunt `/termeni`, `/confidentialitate` și `/cookies`. Completea
 
 Importă repository-ul ca aplicație Node.js 22+ și pornește-l cu `npm start` sau `server/local.js`. Alege în panou portul alocat și setează aceeași valoare în `PORT` dacă panoul nu o setează automat. Atașează domeniul în panou, aplică în Cloudflare înregistrările afișate și setează `APP_URL=https://pescurt.ro-mihaiu.xyz`. Cheile se setează prin variabilele de mediu ale aplicației. Pentru ștergerea automată a documentelor justificative expirate, configurează apelul periodic descris în secțiunea Supabase.
 
+## Hosting
+
+PeScurt folosește Node.js API routes, Supabase și stocare externă. Vercel se potrivește implementării actuale și păstrează accesul la funcții fără pornire la rece după inactivitate. Render Free poate găzdui un serviciu Node, dar îl oprește după 15 minute fără trafic; prima cerere ulterioară poate aștepta aproximativ un minut. Sistemul de fișiere este temporar, iar aplicația trebuie să continue să folosească Supabase pentru documente. Pentru un site accesibil fără întârziere, păstrează Vercel sau folosește un plan Render plătit.
+
 ## Publicare pe Vercel
 
-Importă repository-ul în Vercel ca proiect de tip **Other**, cu configurația din `vercel.json`. Adaugă variabilele de producție, inclusiv `APP_URL=https://pescurt.ro-mihaiu.xyz`. Atașează domeniul în setările proiectului Vercel și adaugă în Cloudflare înregistrarea DNS indicată acolo. Verifică accesul HTTPS și rulează fluxurile de cont, procesare și plată în mediul de test al fiecărui provider.
+Importă repository-ul în Vercel ca proiect de tip **Other**, cu configurația din `vercel.json`. Adaugă variabilele de producție, inclusiv `APP_URL=https://pescurt.ro-mihaiu.xyz`. Atașează domeniul în setările proiectului Vercel și adaugă în Cloudflare înregistrarea DNS indicată acolo. Verifică accesul HTTPS și fluxurile de cont și documente.
 
-Documentație: [Supabase Auth](https://supabase.com/docs/guides/auth/auth-email-templates) · [OpenAI PDF inputs](https://developers.openai.com/api/docs/guides/file-inputs) · [Stripe Checkout](https://docs.stripe.com/checkout/fulfillment) · [Vercel domains](https://vercel.com/docs/domains/set-up-custom-domain).
+Documentație: [Supabase Auth](https://supabase.com/docs/guides/auth/auth-email-templates) · [OpenAI PDF inputs](https://developers.openai.com/api/docs/guides/file-inputs) · [Vercel domains](https://vercel.com/docs/domains/set-up-custom-domain) · [Render Free](https://render.com/docs/free).
