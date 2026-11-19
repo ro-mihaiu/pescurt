@@ -122,7 +122,7 @@ function landing() {
       <p>Adaugă o poză, un PDF sau o notiță și transformă materialul de la școală în rezumate clare, explicații și întrebări de recapitulare.</p>
       <div class="hero-actions">${buttonLink(auth.signedIn ? '/acasa' : '/creeaza-cont', auth.signedIn ? 'Deschide caietul' : 'Începe gratuit','primary','arrow')}
         <a class="button secondary" href="https://ko-fi.com/ro_mihaiu" target="_blank" rel="noopener noreferrer">Susține PeScurt</a></div>
-      <div class="hero-includes">${icon('check')} 2 documente pe zi cu planul Gratis</div>
+      <div class="hero-includes">${icon('check')} 2 documente procesate pe zi, gratuit</div>
     </div>
     <div class="hero-art" aria-label="Exemplu de rezumat în caiet">
       <div class="paper-background"></div><div class="art-star">${icon('spark')}</div>
