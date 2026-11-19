@@ -1,6 +1,6 @@
 import { timingSafeEqual } from 'node:crypto';
 import { appUrl, dayKey, hasAI, hasAuth, Problem, rpc, zone } from '../server/services.js';
-import { logout, publicAuth, session, updateAccount } from '../server/session.js';
+import { googleOAuthCallback, logout, publicAuth, session, startGoogleOAuth, updateAccount } from '../server/session.js';
 import { notebook } from '../server/notebook.js';
 import { admin, apply, isAdmin, latestStudent, purgeExpired } from '../server/students.js';
 
@@ -69,6 +69,8 @@ export default async function handler(req, res) {
     ? url.searchParams.get('route') : url.pathname.slice(5)).split('/');
   const route = group + '/' + (action || '');
   try {
+    if (route === 'auth/google' && req.method === 'GET') return startGoogleOAuth(res);
+    if (route === 'auth/callback' && req.method === 'GET') return await googleOAuthCallback(req, res);
     if (req.method === 'GET' && group === 'config' && !action) {
       return write(res, 200, {auth: hasAuth, ai: hasAI, zone, legal: legalDetails()});
     }
