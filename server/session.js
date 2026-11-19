@@ -71,7 +71,6 @@ export function startGoogleOAuth(res) {
   authorize.searchParams.set('redirect_to', new URL('/api/auth/callback', appUrl).toString());
   authorize.searchParams.set('code_challenge', challenge);
   authorize.searchParams.set('code_challenge_method', 's256');
-  authorize.searchParams.set('apikey', process.env.SUPABASE_ANON_KEY);
   res.statusCode = 302;
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Set-Cookie', cookie('ps_pkce', verifier, 600));
