@@ -1,7 +1,6 @@
 import { timingSafeEqual } from 'node:crypto';
-import { appUrl, dayKey, hasAI, hasAuth, hasBilling, Problem, rpc, zone } from '../server/services.js';
+import { appUrl, dayKey, hasAI, hasAuth, Problem, rpc, zone } from '../server/services.js';
 import { logout, publicAuth, session, updateAccount } from '../server/session.js';
-import { billing, prices, webhook } from '../server/billing.js';
 import { notebook } from '../server/notebook.js';
 import { admin, apply, isAdmin, latestStudent, purgeExpired } from '../server/students.js';
 
@@ -71,16 +70,13 @@ export default async function handler(req, res) {
   const route = group + '/' + (action || '');
   try {
     if (req.method === 'GET' && group === 'config' && !action) {
-      return write(res, 200, {auth: hasAuth, ai: hasAI, billing: hasBilling, prices: await prices(), zone, legal: legalDetails()});
+      return write(res, 200, {auth: hasAuth, ai: hasAI, zone, legal: legalDetails()});
     }
     if (route === 'jobs/student-retention' && ['GET','POST'].includes(req.method)) {
       if (!hasAuth || !retentionAuthorized(req.headers.authorization)) throw new Problem(403, 'Acces interzis.');
       return write(res, 200, await purgeExpired());
     }
     if (req.method !== 'POST') throw new Problem(405, 'Metodă indisponibilă.');
-    if (route === 'billing/webhook') {
-      return write(res, 200, await webhook(await readBody(req, 1024 * 1024), req.headers['stripe-signature']));
-    }
     if (req.headers.origin !== appUrl) throw new Problem(403, 'Cererea trebuie să pornească din PeScurt.');
     if (!req.headers['content-type']?.startsWith('application/json')) throw new Problem(415, 'Format indisponibil.');
     const input = parse(await readBody(req, ['documents/add', 'student/apply'].includes(route) ? 4220000 : 131072));
@@ -98,21 +94,16 @@ export default async function handler(req, res) {
     if (current.recovery) throw new Problem(403, 'Setează o parolă nouă pentru a continua.');
     const user = current.user;
     if (route === 'account/') {
-      const [usage, student, administrator] = await Promise.all([
-        rpc('account_usage', {p_user: user.id, p_day: dayKey()}), latestStudent(user.id), isAdmin(user.id)
-      ]);
-      const limit = usage.plan === 'free' ? 2 : 5;
+      const usage = await rpc('account_usage', {p_user: user.id, p_day: dayKey()});
+      const limit = 2;
       result = {name: user.user_metadata?.name || '', email: user.email,
-        plan: usage.plan, used: usage.used, limit, remaining: Math.max(0, limit - usage.used),
-        student, administrator, zone};
+        used: usage.used, limit, remaining: Math.max(0, limit - usage.used), zone};
     } else if (group === 'documents' && notebookActions.has(action)) {
       result = await notebook(action, user, input);
     } else if (route === 'student/apply') {
       result = await apply(user, input);
     } else if (group === 'admin' && adminActions.has(action)) {
       result = await admin(action, user, input);
-    } else if (['billing/checkout', 'billing/portal'].includes(route)) {
-      result = await billing(action, user, input);
     } else {
       throw new Problem(404, 'Acțiunea nu a fost găsită.');
     }
