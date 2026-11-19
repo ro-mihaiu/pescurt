@@ -1,4 +1,3 @@
-import { plans, annualSaving } from './plans.js';
 import { legalCopy } from './legal.js';
 
 const root = document.querySelector('#app');
@@ -26,15 +25,12 @@ const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
 const safe = value => String(value ?? '').replace(/[&<>"']/g, char => (
   {'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[char]
 ));
-const names = Object.fromEntries(Object.entries(plans).map(([id, plan]) => [id, plan.name]));
-names.student = 'Elev / student';
 const actionNames = {summary: 'Rezumat', explanation: 'Explică-mi', questions: 'Creează întrebări'};
-const labels = {pending: 'În așteptarea verificării', approved: 'Aprobat', rejected: 'Respins'};
 const routeNames = {
-  '/': 'Acasă', '/preturi': 'Prețuri', '/login': 'Autentificare', '/creeaza-cont': 'Creează cont',
+  '/': 'Acasă', '/preturi': 'Susține PeScurt', '/login': 'Autentificare', '/creeaza-cont': 'Creează cont',
   '/recuperare': 'Recuperare parolă', '/parola-noua': 'Parolă nouă', '/confirma': 'Confirmare email',
   '/acasa': 'Acasă', '/caiet': 'Caiet', '/adauga': 'Adaugă document', '/profil': 'Profil',
-  '/admin': 'Verificare elevi și studenți', '/termeni': 'Termeni și condiții',
+  '/termeni': 'Termeni și condiții',
   '/confidentialitate': 'Politica de confidențialitate', '/cookies': 'Politica de cookie-uri'
 };
 let config = {auth: false, ai: false, prices: {}, zone: 'Europe/Bucharest'};
@@ -43,7 +39,6 @@ let account;
 let navigation = 0;
 let uploadKind = 'note';
 let notebookOffset = 0;
-let adminOffset = 0;
 let filterTimer;
 let activeOutput = 'summary';
 let displayedConfirmation;
@@ -108,7 +103,7 @@ function frame(path, content) {
     <a class="brand" href="${signed ? '/acasa' : '/'}" data-link aria-label="PeScurt, Acasă">${brand}</a>
     ${signed ? `<nav class="desktop-nav" aria-label="Caietul tău">${navigationLinks}</nav>` : ''}
     <nav class="top-actions" aria-label="Pagini publice">
-      <a class="price-link" href="/preturi" data-link ${path === '/preturi' ? 'aria-current="page"' : ''}>Prețuri</a>
+      <a class="price-link" href="https://ko-fi.com/ro_mihaiu" target="_blank" rel="noopener noreferrer">Susține</a>
       ${signed ? '' : `<a class="login-link" href="/login" data-link>Intră în cont</a>${buttonLink('/creeaza-cont','Creează cont','primary compact')}`}
     </nav>
   </div></header>
@@ -126,7 +121,7 @@ function landing() {
       <h1>Învață mai ușor.<br><em>Pe scurt.</em></h1>
       <p>Adaugă o poză, un PDF sau o notiță și transformă materialul de la școală în rezumate clare, explicații și întrebări de recapitulare.</p>
       <div class="hero-actions">${buttonLink(auth.signedIn ? '/acasa' : '/creeaza-cont', auth.signedIn ? 'Deschide caietul' : 'Începe gratuit','primary','arrow')}
-        ${buttonLink('/preturi','Vezi planurile','secondary')}</div>
+        <a class="button secondary" href="https://ko-fi.com/ro_mihaiu" target="_blank" rel="noopener noreferrer">Susține PeScurt</a></div>
       <div class="hero-includes">${icon('check')} 2 documente pe zi cu planul Gratis</div>
     </div>
     <div class="hero-art" aria-label="Exemplu de rezumat în caiet">
@@ -188,31 +183,15 @@ function authForm(path) {
 }
 
 function planPage() {
-  return `<section class="page-title centered"><h1>Planuri PeScurt</h1><p>Toate planurile includ rezumate, explicații și întrebări de recapitulare.</p></section>
-  <section class="plans" aria-label="Planuri disponibile">${Object.entries(plans).map(([id, plan]) => {
-    const billingPeriod = plan.interval === 'year' ? ' / an' : plan.interval === 'month' ? ' / lună' : '';
-    const saving = annualSaving(plan);
-    let cta;
-    if (id === 'free') cta = buttonLink(auth.signedIn ? '/acasa' : '/creeaza-cont', 'Folosește Gratis');
-    else if (plan.student && account?.student?.status !== 'approved') {
-      cta = buttonLink(auth.signedIn ? '/profil#student' : '/login?urmator=student', 'Verifică statutul', 'secondary');
-    } else if (!config.prices[id]) cta = '<span class="unavailable">Plată indisponibilă momentan</span>';
-    else if (!auth.signedIn) cta = buttonLink('/login?urmator=preturi','Intră în cont','secondary');
-    else cta = `<form data-action="billing/checkout"><input type="hidden" name="plan" value="${id}"><button class="button secondary full">Alege planul</button><div data-feedback></div></form>`;
-    return `<article class="paper-panel plan ${id === 'free' ? 'free-plan' : ''}">
-      <h2>${plan.name}</h2>
-      <div class="plan-price">${plan.lei} lei<small>${billingPeriod}</small></div>
-      ${saving ? `<p class="plan-saving"><strong>Economisești ${saving} lei</strong> față de 12 plăți lunare.</p>` : ''}
-      <p>${plan.description}</p>
-      <ul><li>${icon('check')} ${id === 'free' ? 2 : 5} documente procesate pe zi</li>
-      <li>${icon('check')} ${id === 'free' ? 'Fără plată' : id === 'lifetime' ? 'Fără reînnoire automată' : 'Anulare din portalul de facturare'}</li>
-      ${plan.student ? `<li>${icon('check')} Doar după aprobare</li>` : ''}</ul>
-      <div class="plan-action">${cta}</div>
-    </article>`;
-  }).join('')}</section>
-  <div class="plan-foot">${icon('lock')} ${config.billing ? 'Plățile se fac în pagina securizată Stripe.' : 'Plățile așteaptă configurarea procesatorului Stripe.'}</div>`;
+  return `<section class="page-title centered"><h1>Susține PeScurt</h1>
+    <p>PeScurt rămâne gratuit. Dacă proiectul îți este util, îl poți susține printr-o donație pe Ko-fi.</p></section>
+    <section class="paper-panel form-panel donation-card">
+      <span class="tile">${icon('spark')}</span>
+      <h2>O donație, doar dacă vrei</h2>
+      <p class="muted">Donația este voluntară și nu activează funcții suplimentare sau abonamente. Poți găsi și produsele disponibile în magazinul Ko-fi.</p>
+      <a class="button primary" href="https://ko-fi.com/ro_mihaiu" target="_blank" rel="noopener noreferrer">${icon('arrow')} Deschide Ko-fi</a>
+    </section>`;
 }
-
 function legalPage(path) {
   const policy = legalCopy[path];
   const operator = config.legal || {};
@@ -229,13 +208,12 @@ function legalPage(path) {
 }
 
 function usageCard() {
-  const {used, limit, remaining, plan, zone} = account;
+  const {used, limit, remaining, zone} = account;
   return `<section class="paper-panel usage">
-    <div class="usage-row"><span class="tile">${icon('file')}</span><div><h2>Documente azi</h2><p>${used} din ${limit} documente folosite azi</p></div><span class="tag">${names[plan]}</span></div>
+    <div class="usage-row"><span class="tile">${icon('file')}</span><div><h2>Documente azi</h2><p>${used} din ${limit} documente folosite azi</p></div><span class="tag">Gratis</span></div>
     <div class="meter" role="progressbar" aria-label="Documente folosite azi" aria-valuenow="${Math.min(used, limit)}" aria-valuemin="0" aria-valuemax="${limit}">
       ${Array.from({length:limit}, (_, index) => `<span class="${index < used ? 'spent' : ''}"></span>`).join('')}</div>
     <div class="usage-info"><span>${remaining === 0 ? 'Ai folosit toate documentele de azi.' : remaining === 1 ? 'Mai poți procesa un document azi.' : 'Mai poți procesa ' + remaining + ' documente azi.'}</span><span title="Fusul orar al serviciului">${safe(zone)}</span></div>
-    ${plan === 'free' ? `<a class="upgrade" href="/preturi" data-link>Vezi Premium <span>Până la 5/zi</span>${icon('arrow')}</a>` : ''}
   </section>`;
 }
 
@@ -347,34 +325,9 @@ function documentPage(doc) {
     </section></div>`}`;
 }
 
-function studentText(student) {
-  if (!student) return 'Trimite un document pentru a solicita tariful redus. Un administrator verifică manual cererea.';
-  if (student.status === 'approved') return 'Statutul tău a fost verificat. Acum poți alege planul la tarif redus.';
-  if (student.status === 'rejected') return student.reason || 'Documentul trimis nu a putut confirma statutul. Poți depune o cerere nouă.';
-  return 'Cererea este în așteptare. Un administrator va verifica manual documentul încărcat.';
-}
-
 function profilePage() {
-  const student = account.student;
-  return `<section class="page-title"><h1>Profilul meu</h1><p>Cont, consum și preferințe de facturare.</p></section>
-  ${new URLSearchParams(location.search).get('plata') === 'asteptare' ? notice('Planul se actualizează după ce primim confirmarea de la Stripe.') : ''}
+  return `<section class="page-title"><h1>Profilul meu</h1><p>Setările contului și consumul tău zilnic.</p></section>
   <div class="profile-grid">${usageCard()}
-  <section class="paper-panel form-panel"><h2>Abonament</h2><p class="muted">Planul curent este <strong>${names[account.plan]}</strong>.</p>
-    ${config.billing ? '<form data-action="billing/portal"><button class="button secondary">Gestionează abonamentul</button><div data-feedback aria-live="polite"></div></form>'
-      : notice('Gestionarea abonamentului așteaptă configurarea Stripe.')}
-    <a class="inline-link" href="/preturi" data-link>Compară planurile</a>
-  </section>
-  <section class="paper-panel form-panel" id="student"><h2>Verificare elev / student</h2>
-    ${student ? `<span class="tag status-${safe(student.status)}">${labels[student.status]}</span>` : ''}
-    <p class="muted">${safe(studentText(student))}</p>
-    ${student?.reviewed_at ? `<p class="muted">Decizie înregistrată la ${date(student.reviewed_at)}.</p>` : ''}
-    ${!student || student.status === 'rejected' ? `
-      <p>Poți trimite un carnet de elev vizat, o adeverință sau o legitimație de student valabilă.
-      Lasă vizibile numele, instituția și valabilitatea. Folosește în profil numele care apare pe document. Acoperă CNP-ul, adresa, seria și celelalte date care nu sunt necesare.</p>
-      <form data-action="student/apply">${fileControl('Alege documentul justificativ')}
-      <button class="button primary">Trimite spre verificare</button><div data-feedback aria-live="polite"></div></form>` :
-      student.status === 'approved' ? buttonLink('/preturi', 'Vezi tariful pentru elevi / studenți','secondary') : ''}
-  </section>
   <section class="paper-panel form-panel"><h2>Setările contului</h2><p class="muted break-word">${safe(account.email)}</p>
     <form data-action="auth/update"><label>Nume<input name="name" value="${safe(account.name)}" maxlength="80" autocomplete="name" required></label>
       <button class="button secondary">Salvează numele</button><div data-feedback aria-live="polite"></div></form>
@@ -383,57 +336,16 @@ function profilePage() {
       <label>Parola nouă<input name="password" type="password" autocomplete="new-password" minlength="8" maxlength="72" required></label>
       <button class="button secondary">Schimbă parola</button><div data-feedback aria-live="polite"></div></form></details>
     <form data-action="auth/logout"><button class="button danger">Deconectează-te</button><div data-feedback aria-live="polite"></div></form>
-    ${account.administrator ? buttonLink('/admin','Administrare verificări','secondary','lock') : ''}
+  </section>
+  <section class="paper-panel form-panel"><h2>Susține PeScurt</h2><p class="muted">Donațiile sunt voluntare și nu schimbă limita gratuită de 2 documente pe zi.</p>
+    <a class="button secondary" href="https://ko-fi.com/ro_mihaiu" target="_blank" rel="noopener noreferrer">Deschide Ko-fi</a>
   </section></div>`;
 }
-
-function adminPage() {
-  return `<section class="page-title"><h1>Verificări elev / student</h1><p>Consultă cererile și înregistrează decizia.</p></section>
-  <section class="paper-panel form-panel"><div class="fields">
-    <label>Starea cererii<select id="admin-filter">${Object.entries(labels).map(([key,label]) => `<option value="${key}">${label}</option>`).join('')}</select></label>
-    <form data-action="admin/purge"><button class="button secondary">Șterge documentele expirate</button><div data-feedback aria-live="polite"></div></form>
-  </div></section><div id="admin-results" aria-live="polite">${loading()}</div>`;
-}
-
-let adminFetch = 0;
-async function fetchAdmin() {
-  const target = document.querySelector('#admin-results');
-  if (!target) return;
-  const ticket = ++adminFetch;
-  const status = document.querySelector('#admin-filter').value;
-  const offset = adminOffset;
-  target.innerHTML = loading();
-  try {
-    const {items, more} = await api('admin/list', {status, offset});
-    if (!target.isConnected || ticket !== adminFetch) return;
-    if (!items.length && offset) { adminOffset = Math.max(0, offset - 20); return fetchAdmin(); }
-    target.innerHTML = items.length ? items.map(item => {
-      const id = safe(item.id);
-      const expired = new Date(item.expires_at) <= new Date();
-      const hiddenId = `<input type="hidden" name="id" value="${id}">`;
-      return `<article class="paper-panel form-panel admin-item"><h2>Cerere din ${date(item.created_at)}</h2>
-        <p>${safe(item.applicant_name)}</p><p><span class="tag status-${safe(item.status)}">${labels[item.status]}</span></p>
-        <p class="muted">${item.reviewed_at ? 'Decizie din ' + date(item.reviewed_at) + ' · ' : ''}Păstrare până la ${date(item.expires_at)}.</p>
-        ${item.reason ? `<p>${safe(item.reason)}</p>` : ''}
-        ${item.file_type && !expired ? `<form data-action="admin/proof">${hiddenId}<button class="button secondary compact">${icon('lock')} Descarcă documentul</button><div data-feedback></div></form>` : ''}
-        ${item.status === 'pending' && !expired ? `<form data-action="admin/decide">${hiddenId}
-          <label>Motivul respingerii<textarea name="reason" rows="2" maxlength="500" placeholder="Completează dacă respingi cererea"></textarea></label>
-          <div class="form-end"><button class="button primary compact" name="status" value="approved">Aprobă</button>
-          <button class="button danger compact" name="status" value="rejected">Respinge</button></div><div data-feedback></div></form>` : ''}
-        ${item.file_type && (item.status !== 'pending' || expired) ? `<form data-action="admin/remove">${hiddenId}<button class="button danger compact">Șterge documentul justificativ</button><div data-feedback></div></form>` : ''}
-        ${!item.file_type ? '<p class="muted">Documentul justificativ a fost șters.</p>' : ''}
-      </article>`;
-    }).join('') + paging('admin', offset, more) : empty('lock','Nu sunt cereri în această stare','Poți verifica celelalte stări din filtru.');
-  } catch (error) {
-    if (ticket === adminFetch) target.innerHTML = notice(error.message, 'error');
-  }
-}
-
 async function show(focus = false) {
   const ticket = ++navigation;
   let path = location.pathname.replace(/\/$/, '') || '/';
   const isDocument = /^\/document\/[^/]+$/.test(path);
-  const needsAccount = isDocument || ['/acasa','/caiet','/adauga','/profil','/admin'].includes(path);
+  const needsAccount = isDocument || ['/acasa','/caiet','/adauga','/profil'].includes(path);
   document.title = (routeNames[path] || (isDocument ? 'Document' : 'Pagină indisponibilă')) + ' · PeScurt';
   if (path === '/confirma') {
     const params = new URLSearchParams(location.search);
@@ -467,11 +379,7 @@ async function show(focus = false) {
         uploadKind = 'note';
         frame(path, addPage());
       } else if (path === '/profil') frame(path, profilePage());
-      else if (path === '/admin') {
-        adminOffset = 0;
-        frame(path, account.administrator ? adminPage() : notice('Ai nevoie de acces de administrator.', 'error'));
-        if (account.administrator) await fetchAdmin();
-      } else if (isDocument) {
+      else if (isDocument) {
         const doc = await api('documents/get', {id: path.split('/').at(-1)});
         if (ticket !== navigation) return;
         openedDocument = doc;
@@ -491,7 +399,6 @@ async function show(focus = false) {
   }
   if (ticket !== navigation) return;
   if (focus) document.querySelector('#main')?.focus({preventScroll: true});
-  if (location.hash === '#student') document.querySelector('#student')?.scrollIntoView();
 }
 
 function go(href, replace = false) {
@@ -518,9 +425,6 @@ root.addEventListener('click', event => {
   if (page?.dataset.page === 'notebook') {
     notebookOffset = Number(page.dataset.offset);
     fetchNotebook();
-  } else if (page?.dataset.page === 'admin') {
-    adminOffset = Number(page.dataset.offset);
-    fetchAdmin();
   }
 });
 
@@ -540,9 +444,6 @@ root.addEventListener('change', event => {
       input.disabled = source.hidden;
       input.required = !source.hidden;
     }
-  } else if (event.target.id === 'admin-filter') {
-    adminOffset = 0;
-    fetchAdmin();
   }
 });
 
@@ -562,8 +463,7 @@ root.addEventListener('submit', async event => {
   event.preventDefault();
   if (form.getAttribute('aria-busy') === 'true') return;
   const action = form.dataset.action;
-  if (['documents/delete', 'admin/remove'].includes(action) &&
-      !window.confirm(action === 'documents/delete' ? 'Ștergi definitiv acest document?' : 'Ștergi definitiv documentul justificativ?')) return;
+  if (action === 'documents/delete' && !window.confirm('Ștergi definitiv acest document?')) return;
   const ticket = navigation;
   const nextPath = new URLSearchParams(location.search).get('urmator');
   const payload = Object.fromEntries(new FormData(form));
@@ -576,17 +476,9 @@ root.addEventListener('submit', async event => {
   if (feedback) feedback.innerHTML = `<p class="loading inline-loading" role="status"><span class="spinner"></span>${action === 'documents/process' ? 'Se procesează materialul…' : 'Se trimite…'}</p>`;
   try {
     if (payload.file instanceof File) payload.file = await base64(payload.file);
-    const result = await api(action, payload, ['documents/original', 'admin/proof'].includes(action));
+    const result = await api(action, payload, action === 'documents/original');
     if (ticket !== navigation) return;
     if (!result) { if (feedback) feedback.replaceChildren(); return; }
-    if (result.url) {
-      const target = new URL(result.url);
-      if (!['checkout.stripe.com', 'billing.stripe.com'].includes(target.hostname) || target.protocol !== 'https:') {
-        throw new Error('Linkul de facturare este indisponibil.');
-      }
-      location.assign(target.href);
-      return;
-    }
     if (action === 'auth/logout') {
       auth = {};
       account = undefined;
@@ -596,8 +488,7 @@ root.addEventListener('submit', async event => {
     if (result.next) {
       auth = await api('auth/session');
       account = undefined;
-      return go(result.next === '/acasa' && nextPath === 'student' ? '/profil#student' :
-        result.next === '/acasa' && nextPath === 'preturi' ? '/preturi' : result.next);
+      return go(result.next === '/acasa' && nextPath === 'preturi' ? '/preturi' : result.next);
     }
     if (action === 'documents/add') return go('/document/' + result.id);
     if (action === 'documents/delete') return go('/caiet');
@@ -606,12 +497,6 @@ root.addEventListener('submit', async event => {
       document.querySelector('#output-panel').innerHTML = outputPanel(openedDocument, activeOutput);
       return;
     }
-    if (action.startsWith('admin/')) {
-      await fetchAdmin();
-      if (feedback?.isConnected) feedback.innerHTML = notice(result.message || 'Documente șterse: ' + result.deleted + '.');
-      return;
-    }
-    if (action === 'student/apply') return show();
     if (feedback) feedback.innerHTML = notice(result.message || 'Modificarea a fost salvată.');
     if (action === 'auth/signup') form.reset();
   } catch (error) {
