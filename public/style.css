@@ -222,6 +222,8 @@ details summary { font-weight: 740; color: var(--green); cursor: pointer; min-he
   .welcome { padding: 25px; }
   .usage { padding: 22px; }
   .document-layout { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
+  .documents, .fields, .profile-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .features { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 .site-footer .brand img { width: auto; height: 28px; }
