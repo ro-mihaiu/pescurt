@@ -33,7 +33,7 @@ const routeNames = {
   '/termeni': 'Termeni și condiții',
   '/confidentialitate': 'Politica de confidențialitate', '/cookies': 'Politica de cookie-uri'
 };
-let config = {auth: false, ai: false, prices: {}, zone: 'Europe/Bucharest'};
+let config = {auth: false, ai: false, zone: 'Europe/Bucharest'};
 let auth = {};
 let account;
 let navigation = 0;
@@ -188,7 +188,7 @@ function supportPage() {
     <section class="paper-panel form-panel donation-card">
       <span class="tile">${icon('spark')}</span>
       <h2>O donație, doar dacă vrei</h2>
-      <p class="muted">Donația este voluntară și nu deblochează funcții suplimentare. Poți găsi și produsele disponibile în magazinul Ko-fi.</p>
+      <p class="muted">Donația este voluntară și nu deblochează funcții suplimentare. Dacă magazinul Ko-fi este activ, produsele sunt pe aceeași pagină.</p>
       <a class="button primary" href="https://ko-fi.com/ro_mihaiu" target="_blank" rel="noopener noreferrer">${icon('arrow')} Deschide Ko-fi</a>
     </section>`;
 }
