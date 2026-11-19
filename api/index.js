@@ -98,7 +98,7 @@ export default async function handler(req, res) {
     if (route === 'account/') {
       const usage = await rpc('account_usage', {p_user: user.id, p_day: dayKey()});
       const limit = 2;
-      result = {name: user.user_metadata?.name || '', email: user.email,
+      result = {name: user.user_metadata?.name || user.user_metadata?.full_name || user.user_metadata?.given_name || '', email: user.email,
         used: usage.used, limit, remaining: Math.max(0, limit - usage.used), zone};
     } else if (group === 'documents' && notebookActions.has(action)) {
       result = await notebook(action, user, input);
