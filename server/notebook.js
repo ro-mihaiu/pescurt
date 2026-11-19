@@ -57,7 +57,7 @@ export async function notebook(action, user, input) {
   });
   if (reserved.status === 'missing') throw new Problem(404, 'Documentul nu a fost găsit.');
   if (reserved.status === 'busy') throw new Problem(409, 'Documentul este deja în curs de procesare.');
-  if (reserved.status === 'limit') throw new Problem(429, 'Ai atins limita de documente pentru azi. Poți reveni mâine sau alege un plan cu o limită mai mare.');
+  if (reserved.status === 'limit') throw new Problem(429, 'Ai atins limita gratuită de 2 documente procesate pentru azi. Poți reveni mâine.');
   if (reserved.status === 'cached') return {output: reserved.output};
   const finish = output => rpc('finish_processing', {
     p_user: user.id, p_document: id, p_token: token, p_action: input.action, p_output: output
