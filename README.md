@@ -22,6 +22,17 @@ Deschide <http://localhost:3000>. Paginile publice funcționează fără conturi
    - **Reset password:** `{{ .SiteURL }}/confirma?type=recovery&token_hash={{ .TokenHash }}`
 Cererile de verificare trimise înainte de dezactivarea funcției rămân în stocare privată. `STUDENT_PROOF_RETENTION_DAYS` (implicit 30) se aplică cererilor existente; cronul Vercel șterge automat documentele expirate. Pentru alt host, configurează un apel periodic la `/api/jobs/student-retention` cu headerul `Authorization: Bearer <CRON_SECRET>`.
 
+## Autentificare cu Google
+
+Fluxul OAuth al site-ului folosește PKCE și păstrează sesiunea în cookie-uri HttpOnly. Nu salva Client Secret în repository sau în codul public.
+
+1. În Google Cloud creează un OAuth Client ID de tip **Web application**. Adaugă originea JavaScript `https://pescurt.ro-mihaiu.xyz`.
+2. La **Authorized redirect URIs**, adaugă callbackul Supabase: `https://ejqhjefxyvgavoijejek.supabase.co/auth/v1/callback`.
+3. În Supabase, deschide **Authentication → Sign In / Providers → Supabase Auth → Google**, activează Google și completează Client ID și Client Secret.
+4. În **Authentication → URL Configuration**, păstrează Site URL `https://pescurt.ro-mihaiu.xyz` și adaugă redirect URL-ul aplicației `https://pescurt.ro-mihaiu.xyz/api/auth/callback`.
+
+Butonul Google apare pe paginile de login și creare cont. Folosește același domeniu în Google, Supabase și `APP_URL`. Pentru dezvoltare locală, adaugă callbackul local în URL allow list separat.
+ 
 ## OpenAI și limite
 
 Completează `OPENAI_API_KEY` și `OPENAI_MODEL` cu un model Responses API care acceptă imagini și PDF-uri. Aplicația trimite doar materialul de studiu la cererea utilizatorului. 
