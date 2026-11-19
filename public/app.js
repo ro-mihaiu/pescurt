@@ -103,7 +103,7 @@ function frame(path, content) {
     <a class="brand" href="${signed ? '/acasa' : '/'}" data-link aria-label="PeScurt, Acasă">${brand}</a>
     ${signed ? `<nav class="desktop-nav" aria-label="Caietul tău">${navigationLinks}</nav>` : ''}
     <nav class="top-actions" aria-label="Pagini publice">
-      <a class="price-link" href="https://ko-fi.com/ro_mihaiu" target="_blank" rel="noopener noreferrer">Susține</a>
+      <a class="price-link" href="/preturi" data-link ${path === '/preturi' ? 'aria-current="page"' : ''}>Susține</a>
       ${signed ? '' : `<a class="login-link" href="/login" data-link>Intră în cont</a>${buttonLink('/creeaza-cont','Creează cont','primary compact')}`}
     </nav>
   </div></header>
@@ -121,7 +121,7 @@ function landing() {
       <h1>Învață mai ușor.<br><em>Pe scurt.</em></h1>
       <p>Adaugă o poză, un PDF sau o notiță și transformă materialul de la școală în rezumate clare, explicații și întrebări de recapitulare.</p>
       <div class="hero-actions">${buttonLink(auth.signedIn ? '/acasa' : '/creeaza-cont', auth.signedIn ? 'Deschide caietul' : 'Începe gratuit','primary','arrow')}
-        <a class="button secondary" href="https://ko-fi.com/ro_mihaiu" target="_blank" rel="noopener noreferrer">Susține PeScurt</a></div>
+        ${buttonLink('/preturi','Susține PeScurt','secondary')}</div>
       <div class="hero-includes">${icon('check')} 2 documente procesate pe zi, gratuit</div>
     </div>
     <div class="hero-art" aria-label="Exemplu de rezumat în caiet">
@@ -182,7 +182,7 @@ function authForm(path) {
   </div></section>`;
 }
 
-function planPage() {
+function supportPage() {
   return `<section class="page-title centered"><h1>Susține PeScurt</h1>
     <p>PeScurt rămâne gratuit. Dacă proiectul îți este util, îl poți susține printr-o donație pe Ko-fi.</p></section>
     <section class="paper-panel form-panel donation-card">
@@ -369,7 +369,7 @@ async function show(focus = false) {
     try {
       if (auth.signedIn && !auth.recovery) account = await api('account');
       if (ticket !== navigation) return;
-      if (path === '/preturi') frame(path, planPage());
+      if (path === '/preturi') frame(path, supportPage());
       else if (path === '/acasa') await dashboard(ticket);
       else if (path === '/caiet') {
         notebookOffset = 0;
@@ -393,7 +393,7 @@ async function show(focus = false) {
         account = undefined;
         if (needsAccount) return go('/login', true);
       }
-      frame(path, path === '/preturi' ? planPage() : `<div class="error-panel">${notice(error.message, 'error')}
+      frame(path, path === '/preturi' ? supportPage() : `<div class="error-panel">${notice(error.message, 'error')}
         ${buttonLink(path === '/caiet' ? '/acasa' : '/caiet','Revino','secondary')}</div>`);
     }
   }
