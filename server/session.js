@@ -1,4 +1,3 @@
-import { createHash, randomBytes } from 'node:crypto';
 import { appUrl, auth, hasAuth, Problem, ProviderError, textField } from './services.js';
 
 function readCookies(req) {
@@ -62,53 +61,6 @@ function passwordField(value, min = 8) {
   return value;
 }
 
-export function startGoogleOAuth(res) {
-  if (!hasAuth) throw new Problem(503, 'Autentificarea așteaptă configurarea serviciului de conturi.');
-  const verifier = randomBytes(32).toString('base64url');
-  const challenge = createHash('sha256').update(verifier).digest('base64url');
-  const authorize = new URL('/auth/v1/authorize', process.env.SUPABASE_URL);
-  authorize.searchParams.set('provider', 'google');
-  authorize.searchParams.set('redirect_to', new URL('/api/auth/callback', appUrl).toString());
-  authorize.searchParams.set('code_challenge', challenge);
-  authorize.searchParams.set('code_challenge_method', 's256');
-  res.statusCode = 302;
-  res.setHeader('Cache-Control', 'no-store');
-  res.setHeader('Set-Cookie', cookie('ps_pkce', verifier, 600));
-  res.setHeader('Location', authorize.toString());
-  res.end();
-}
-
-export async function googleOAuthCallback(req, res) {
-  const url = new URL(req.url, appUrl);
-  const cookiesInRequest = readCookies(req);
-  const prefix = appUrl.startsWith('https:') ? '__Host-' : '';
-  const verifier = cookiesInRequest[prefix + 'ps_pkce'];
-  const code = url.searchParams.get('code');
-  if (!hasAuth || !code || !verifier || url.searchParams.has('error')) {
-    res.statusCode = 303;
-    res.setHeader('Cache-Control', 'no-store');
-    res.setHeader('Set-Cookie', cookie('ps_pkce', '', 0));
-    res.setHeader('Location', '/login?oauth=google');
-    return res.end();
-  }
-  try {
-    const data = await auth('token?grant_type=pkce', 'POST', {auth_code: code, code_verifier: verifier});
-    writeSession(res, data);
-    const sessionCookies = res.getHeader('Set-Cookie');
-    res.setHeader('Set-Cookie', [...(Array.isArray(sessionCookies) ? sessionCookies : [sessionCookies]), cookie('ps_pkce', '', 0)]);
-    res.statusCode = 303;
-    res.setHeader('Cache-Control', 'no-store');
-    res.setHeader('Location', '/acasa');
-    res.end();
-  } catch (error) {
-    res.statusCode = 303;
-    res.setHeader('Cache-Control', 'no-store');
-    res.setHeader('Set-Cookie', cookie('ps_pkce', '', 0));
-    res.setHeader('Location', '/login?oauth=google');
-    res.end();
-  }
-}
-
 export async function publicAuth(action, input, res) {
   if (!hasAuth) throw new Problem(503, 'Autentificarea așteaptă configurarea serviciului de conturi.');
   try {
@@ -121,9 +73,21 @@ export async function publicAuth(action, input, res) {
       return {next: type === 'recovery' ? '/parola-noua' : '/acasa'};
     }
     const email = emailField(input.email);
+    if (action === 'verifycode') {
+      if (!['email', 'recovery', 'signup'].includes(input.type) || !/^\d{6,10}$/.test(input.code || ''))
+        throw new Problem(400, 'Introdu codul numeric primit pe email.');
+      const data = await auth('verify', 'POST', {type: input.type, email, token: input.code});
+      writeSession(res, data, input.type === 'recovery');
+      return {next: input.type === 'recovery' ? '/parola-noua' : '/acasa'};
+    }
+    if (action === 'resend' || action === 'sendcode') {
+      if (action === 'resend') await auth('resend', 'POST', {type: 'signup', email});
+      else await auth('otp', 'POST', {email, create_user: false});
+      return {message: 'Dacă adresa este eligibilă, verifică emailul și folderul Spam.'};
+    }
     if (action === 'forgot') {
       await auth('recover', 'POST', {email});
-      return {message: 'Dacă adresa aparține unui cont, vei primi un link pentru resetarea parolei.'};
+      return {message: 'Dacă adresa aparține unui cont, vei primi instrucțiunile de resetare.'};
     }
     const password = passwordField(input.password, action === 'login' ? 1 : 8);
     if (action === 'signup') {
@@ -139,11 +103,16 @@ export async function publicAuth(action, input, res) {
   } catch (error) {
     if (!(error instanceof ProviderError) || error.status >= 500) throw error;
     if (error.status === 429) throw new Problem(429, 'Ai făcut prea multe încercări. Revino peste câteva minute.');
+    if (['sendcode','resend','forgot','signup'].includes(action) && ['email_address_not_authorized','email_provider_disabled','email_not_enabled'].includes(error.code))
+      throw new Problem(503, 'Serviciul de email nu poate trimite mesaje momentan.');
+    if (action === 'verifycode') throw new Problem(400, 'Cod invalid sau expirat. Cere un cod nou.');
+    if (['sendcode','resend'].includes(action) && ['user_not_found','otp_disabled','email_exists'].includes(error.code))
+      return {message: 'Dacă adresa este eligibilă, verifică emailul și folderul Spam.'};
     if (action === 'confirm') throw new Problem(400, 'Linkul a expirat sau a fost deja folosit.');
     if (action === 'login') {
       throw new Problem(401, error.code === 'email_not_confirmed' ? 'Confirmă adresa din email înainte de autentificare.' : 'Emailul sau parola este incorectă.');
     }
-    if (action === 'forgot') return {message: 'Dacă adresa aparține unui cont, vei primi un link pentru resetarea parolei.'};
+    if (action === 'forgot') return {message: 'Dacă adresa aparține unui cont, vei primi instrucțiunile de resetare.'};
     throw new Problem(400, 'Contul nu a putut fi creat. Verifică datele sau încearcă autentificarea.');
   }
 }

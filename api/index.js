@@ -1,10 +1,11 @@
 import { timingSafeEqual } from 'node:crypto';
 import { appUrl, dayKey, hasAI, hasAuth, Problem, rpc, zone } from '../server/services.js';
-import { googleOAuthCallback, logout, publicAuth, session, startGoogleOAuth, updateAccount } from '../server/session.js';
+import { logout, publicAuth, session, updateAccount } from '../server/session.js';
+import { protectAuth } from '../server/auth-protection.js';
 import { notebook } from '../server/notebook.js';
 import { admin, apply, isAdmin, latestStudent, purgeExpired } from '../server/students.js';
 
-const publicActions = new Set(['auth/login', 'auth/signup', 'auth/forgot', 'auth/confirm']);
+const publicActions = new Set(['auth/login', 'auth/signup', 'auth/forgot', 'auth/confirm', 'auth/sendcode', 'auth/verifycode', 'auth/resend']);
 const notebookActions = new Set(['list', 'get', 'add', 'original', 'delete', 'process']);
 const adminActions = new Set(['list', 'proof', 'decide', 'remove', 'purge']);
 const extensions = {'application/pdf': 'pdf', 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp'};
@@ -69,10 +70,8 @@ export default async function handler(req, res) {
     ? url.searchParams.get('route') : url.pathname.slice(5)).split('/');
   const route = group + '/' + (action || '');
   try {
-    if (route === 'auth/google' && req.method === 'GET') return startGoogleOAuth(res);
-    if (route === 'auth/callback' && req.method === 'GET') return await googleOAuthCallback(req, res);
     if (req.method === 'GET' && group === 'config' && !action) {
-      return write(res, 200, {auth: hasAuth, ai: hasAI, zone, legal: legalDetails()});
+      return write(res, 200, {auth: hasAuth, ai: hasAI, captchaSiteKey: process.env.TURNSTILE_SITE_KEY || '', zone, legal: legalDetails()});
     }
     if (route === 'jobs/student-retention' && ['GET','POST'].includes(req.method)) {
       if (!hasAuth || !retentionAuthorized(req.headers.authorization)) throw new Problem(403, 'Acces interzis.');
@@ -84,6 +83,7 @@ export default async function handler(req, res) {
     const input = parse(await readBody(req, ['documents/add', 'student/apply'].includes(route) ? 4220000 : 131072));
     let result;
     if (publicActions.has(route)) {
+      await protectAuth(req, action, input);
       result = await publicAuth(action, input, res);
       return write(res, 200, result);
     }

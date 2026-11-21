@@ -28,7 +28,7 @@ const safe = value => String(value ?? '').replace(/[&<>"']/g, char => (
 const actionNames = {summary: 'Rezumat', explanation: 'Explică-mi', questions: 'Creează întrebări'};
 const routeNames = {
   '/': 'Acasă', '/preturi': 'Susține PeScurt', '/login': 'Autentificare', '/creeaza-cont': 'Creează cont',
-  '/recuperare': 'Recuperare parolă', '/parola-noua': 'Parolă nouă', '/confirma': 'Confirmare email',
+  '/recuperare': 'Recuperare parolă', '/parola-noua': 'Parolă nouă', '/confirma': 'Confirmare email', '/cod': 'Cod pe email',
   '/acasa': 'Acasă', '/caiet': 'Caiet', '/adauga': 'Adaugă document', '/profil': 'Profil',
   '/termeni': 'Termeni și condiții',
   '/confidentialitate': 'Politica de confidențialitate', '/cookies': 'Politica de cookie-uri'
@@ -93,7 +93,23 @@ const loading = () => '<div class="loading" role="status"><span class="spinner">
 const privateLinks = [['/acasa','home','Acasă'],['/caiet','book','Caiet'],['/adauga','plus','Adaugă'],['/profil','user','Profil']];
 const fileInput = 'accept="application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp"';
 
+let captchaLoader;
+let currentWidget;
+let requestedEmail = '';
+function captchaApi() {
+  if (!captchaLoader) captchaLoader = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    script.onload = () => window.turnstile.ready(() => resolve(window.turnstile));
+    script.onerror = () => { script.remove(); captchaLoader = undefined; reject(new Error()); };
+    document.head.append(script);
+  });
+  return captchaLoader;
+}
+
 function frame(path, content) {
+  if (currentWidget != null) window.turnstile?.remove(currentWidget);
+  currentWidget = undefined;
   const signed = auth.signedIn && !auth.recovery;
   const navigationLinks = privateLinks.map(([href, symbol, label]) => {
     const active = path === href || (href === '/caiet' && path.startsWith('/document/'));
@@ -112,6 +128,31 @@ function frame(path, content) {
     <div><a class="brand" href="${signed ? '/acasa' : '/'}" data-link>${brand}</a>${legalLinks}</div>
   </footer>
   ${signed ? `<nav class="bottom-nav" aria-label="Caietul tău">${navigationLinks}</nav>` : ''}`;
+}
+
+function mountCaptcha() {
+  const box = root.querySelector('[data-captcha]');
+  if (!box) return;
+  if (!config.captchaSiteKey) { box.textContent = 'Verificarea anti-robot nu este configurată.'; return; }
+  captchaApi().then(widget => {
+    if (!box.isConnected) return;
+    currentWidget = widget.render(box, {sitekey: config.captchaSiteKey, action: 'pescurt_auth', size: 'flexible'});
+  }).catch(() => { box.textContent = 'Verificarea nu s-a încărcat. Reîncarcă pagina.'; });
+}
+
+function codeForm() {
+  const mode = new URLSearchParams(location.search).get('tip');
+  const type = ['signup', 'recovery'].includes(mode) ? mode : 'email';
+  const action = {signup:'auth/resend', recovery:'auth/forgot', email:'auth/sendcode'}[type];
+  return `<section class="auth-wrap"><div class="paper-panel auth-card">
+    <h1>${type === 'signup' ? 'Confirmă adresa' : type === 'recovery' ? 'Resetează parola' : 'Intră cu un cod'}</h1>
+    <p>Introdu codul din email. Dacă ai primit un link, îl poți deschide direct.</p>
+    <form data-action="auth/verifycode"><input type="hidden" name="type" value="${type}">
+    <label>Email<input required type="email" name="email" value="${safe(requestedEmail)}" autocomplete="email"></label>
+    <label>Cod din email<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6,10}" maxlength="10"></label>
+    <div data-captcha></div><button class="button primary full">Verifică acest cod</button>
+    <button class="button secondary full" data-request="${action}" type="submit">Trimite un cod</button>
+    <div data-feedback aria-live="polite"></div></form></div></section>`;
 }
 
 function landing() {
@@ -157,7 +198,7 @@ function authForm(path) {
   const forgot = path === '/recuperare';
   const reset = path === '/parola-noua';
   const heading = signup ? 'Creează-ți contul' : forgot ? 'Recuperează parola' : reset ? 'Alege o parolă nouă' : 'Bun venit la PeScurt';
-  const description = signup ? 'Primul pas către caietul tău digital.' : forgot ? 'Îți trimitem un link de resetare pe email.' :
+  const description = signup ? 'Primul pas către caietul tău digital.' : forgot ? 'Îți trimitem instrucțiunile de resetare pe email.' :
     reset ? 'Alege o parolă de cel puțin 8 caractere.' : 'Intră în cont ca să continui de unde ai rămas.';
   const disabled = !config.auth || (reset && !auth.recovery);
   return `<section class="auth-wrap"><div class="paper-panel auth-card">
@@ -165,7 +206,6 @@ function authForm(path) {
     <h1>${heading}</h1><p class="muted">${description}</p>
     ${!config.auth ? notice(configError || 'Autentificarea așteaptă conectarea serviciului de conturi.') :
       reset && !auth.recovery ? notice('Deschide linkul de resetare din email sau cere unul nou.', 'error') : ''}
-    ${new URLSearchParams(location.search).get('oauth') === 'google' ? notice('Autentificarea Google nu este configurată sau a eșuat. Verifică setările Google din Supabase.', 'error') : ''}
     <form data-action="${signup ? 'auth/signup' : forgot ? 'auth/forgot' : reset ? 'auth/update' : 'auth/login'}">
       <fieldset ${disabled ? 'disabled' : ''}>
         ${signup ? '<label>Nume<input name="name" autocomplete="name" maxlength="80" required placeholder="Numele tău"></label>' : ''}
@@ -173,10 +213,11 @@ function authForm(path) {
         ${forgot ? '' : `<label>Parolă<input type="password" name="password" autocomplete="${signup || reset ? 'new-password' : 'current-password'}"
           ${signup || reset ? 'minlength="8"' : ''} maxlength="72" required placeholder="••••••••"></label>`}
         ${!signup && !forgot && !reset ? '<a class="inline-link forgot" href="/recuperare" data-link>Ai uitat parola?</a>' : ''}
-        <button class="button primary full" type="submit">${signup ? 'Creează cont' : forgot ? 'Trimite linkul' : reset ? 'Salvează parola' : 'Autentifică-te'}</button>
+        ${reset ? '' : '<div data-captcha></div>'}
+        <button class="button primary full" type="submit">${signup ? 'Creează cont' : forgot ? 'Trimite pe email' : reset ? 'Salvează parola' : 'Autentifică-te'}</button>
       </fieldset><div data-feedback aria-live="polite"></div>
     </form>
-    ${!forgot && !reset ? '<div class="auth-oauth"><span>sau</span><a class="button secondary full google-button" href="/api/auth/google"><span class="google-mark" aria-hidden="true">G</span>Continuă cu Google</a></div>' : ''}
+    ${!forgot && !reset ? '<p><a class="inline-link" href="/cod" data-link>Intră cu un cod pe email</a></p><p><a class="inline-link" href="/cod?tip=signup" data-link>Retrimite confirmarea contului</a></p>' : ''}
     ${signup ? '<p class="signup-legal">Înainte să creezi contul, citește <a href="/termeni" data-link>Termenii și condițiile</a> și <a href="/confidentialitate" data-link>Politica de confidențialitate</a>.</p>' : ''}
     <div class="auth-switch">${signup ? 'Ai deja cont? <a href="/login" data-link>Intră în cont</a>' :
       forgot || reset ? '<a href="' + (reset ? '/recuperare' : '/login') + '" data-link>' + (reset ? 'Cere alt link' : 'Înapoi la autentificare') + '</a>' :
@@ -356,9 +397,10 @@ async function show(focus = false) {
       history.replaceState({}, '', '/confirma');
     }
     frame(path, `<div class="paper-panel form-panel confirm-panel"><h1>Confirmă linkul primit</h1>
-      ${displayedConfirmation ? `<form data-action="auth/confirm"><button class="button primary">Continuă</button><div data-feedback aria-live="polite"></div></form>` :
+      ${displayedConfirmation ? `<form data-action="auth/confirm"><div data-captcha></div><button class="button primary">Continuă</button><div data-feedback aria-live="polite"></div></form>` :
         notice('Deschide din nou linkul primit pe email.')}</div>`);
-  } else if (auth.recovery && needsAccount) {
+  } else if (path === '/cod') frame(path, codeForm());
+  else if (auth.recovery && needsAccount) {
     return go('/parola-noua', true);
   } else if (needsAccount && !auth.signedIn) {
     return go('/login', true);
@@ -400,6 +442,7 @@ async function show(focus = false) {
     }
   }
   if (ticket !== navigation) return;
+  mountCaptcha();
   if (focus) document.querySelector('#main')?.focus({preventScroll: true});
 }
 
@@ -464,12 +507,16 @@ root.addEventListener('submit', async event => {
   if (!form) return;
   event.preventDefault();
   if (form.getAttribute('aria-busy') === 'true') return;
-  const action = form.dataset.action;
+  const action = event.submitter?.dataset.request || form.dataset.action;
   if (action === 'documents/delete' && !window.confirm('Ștergi definitiv acest document?')) return;
   const ticket = navigation;
   const nextPath = new URLSearchParams(location.search).get('urmator');
   const payload = Object.fromEntries(new FormData(form));
   if (event.submitter?.name) payload[event.submitter.name] = event.submitter.value;
+  if (form.querySelector('[data-captcha]')) {
+    payload.captcha = payload['cf-turnstile-response'] || '';
+    delete payload['cf-turnstile-response'];
+  }
   if (action === 'auth/confirm') Object.assign(payload, displayedConfirmation);
   const buttons = [...form.querySelectorAll('button:not([disabled])')];
   form.setAttribute('aria-busy','true');
@@ -500,10 +547,15 @@ root.addEventListener('submit', async event => {
       return;
     }
     if (feedback) feedback.innerHTML = notice(result.message || 'Modificarea a fost salvată.');
-    if (action === 'auth/signup') form.reset();
+    if (['auth/signup','auth/forgot'].includes(action) && location.pathname !== '/cod') {
+      requestedEmail = payload.email;
+      await go('/cod?tip=' + (action === 'auth/signup' ? 'signup' : 'recovery'));
+      root.querySelector('[data-feedback]').innerHTML = notice(result.message);
+    }
   } catch (error) {
     if (feedback) feedback.innerHTML = notice(error.message, 'error');
   } finally {
+    if (form.isConnected && form.querySelector('[data-captcha]') && currentWidget != null) window.turnstile.reset(currentWidget);
     buttons.forEach(button => button.disabled = false);
     form.removeAttribute('aria-busy');
   }
