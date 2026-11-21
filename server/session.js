@@ -1,3 +1,4 @@
+import { policyVersion, requireAcknowledgement } from './policy.js';
 import { appUrl, auth, hasAuth, Problem, ProviderError, textField } from './services.js';
 
 function readCookies(req) {
@@ -70,7 +71,7 @@ export async function publicAuth(action, input, res) {
       const token_hash = textField(input.token, 256, 'Codul de confirmare');
       const data = await auth('verify', 'POST', {type, token_hash});
       writeSession(res, data, type === 'recovery');
-      return {next: type === 'recovery' ? '/parola-noua' : '/acasa'};
+      return {next: type === 'recovery' ? '/parola-noua' : '/panel'};
     }
     const email = emailField(input.email);
     if (action === 'verifycode') {
@@ -78,7 +79,7 @@ export async function publicAuth(action, input, res) {
         throw new Problem(400, 'Introdu codul numeric primit pe email.');
       const data = await auth('verify', 'POST', {type: input.type, email, token: input.code});
       writeSession(res, data, input.type === 'recovery');
-      return {next: input.type === 'recovery' ? '/parola-noua' : '/acasa'};
+      return {next: input.type === 'recovery' ? '/parola-noua' : '/panel'};
     }
     if (action === 'resend' || action === 'sendcode') {
       if (action === 'resend') await auth('resend', 'POST', {type: 'signup', email});
@@ -91,15 +92,16 @@ export async function publicAuth(action, input, res) {
     }
     const password = passwordField(input.password, action === 'login' ? 1 : 8);
     if (action === 'signup') {
+      requireAcknowledgement(input);
       const name = textField(input.name, 80, 'Numele');
-      const data = await auth('signup', 'POST', {email, password, data: {name}});
+      const data = await auth('signup', 'POST', {email, password, data: {name, pescurt_policy:policyVersion}});
       if (!data.access_token) return {message: 'Verifică emailul pentru a confirma adresa și a activa contul.'};
       writeSession(res, data);
     } else {
       const data = await auth('token?grant_type=password', 'POST', {email, password});
       writeSession(res, data);
     }
-    return {next: '/acasa'};
+    return {next: '/panel'};
   } catch (error) {
     if (!(error instanceof ProviderError) || error.status >= 500) throw error;
     if (error.status === 429) throw new Problem(429, 'Ai făcut prea multe încercări. Revino peste câteva minute.');

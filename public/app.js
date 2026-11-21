@@ -29,7 +29,7 @@ const actionNames = {summary: 'Rezumat', explanation: 'Explică-mi', questions: 
 const routeNames = {
   '/': 'Acasă', '/preturi': 'Susține PeScurt', '/login': 'Autentificare', '/creeaza-cont': 'Creează cont',
   '/recuperare': 'Recuperare parolă', '/parola-noua': 'Parolă nouă', '/confirma': 'Confirmare email', '/cod': 'Cod pe email',
-  '/acasa': 'Acasă', '/caiet': 'Caiet', '/adauga': 'Adaugă document', '/profil': 'Profil',
+  '/acasa': 'Acasă', '/caiet': 'Caiet', '/panel': 'Adaugă document', '/reclamatii': 'Reclamații', '/adauga': 'Adaugă document', '/profil': 'Profil',
   '/termeni': 'Termeni și condiții',
   '/confidentialitate': 'Politica de confidențialitate', '/cookies': 'Politica de cookie-uri'
 };
@@ -82,6 +82,7 @@ const brand = '<img src="/logo.svg" alt="PeScurt" width="139" height="36">';
 const legalLinks = `<nav class="legal-links" aria-label="Informații legale">
   <a href="/termeni" data-link>Termeni și condiții</a>
   <a href="/confidentialitate" data-link>Confidențialitate</a>
+  <a href="/reclamatii" data-link>Reclamații</a>
   <a href="/cookies" data-link>Cookie-uri</a>
 </nav>`;
 const buttonLink = (href, label, style = 'primary', symbol = '') =>
@@ -90,7 +91,7 @@ const notice = (text, type = '') => `<p class="notice ${type}" role="${type === 
 const empty = (symbol, heading, text, action = '') =>
   `<div class="empty"><span class="tile">${icon(symbol)}</span><h3>${heading}</h3><p>${text}</p>${action}</div>`;
 const loading = () => '<div class="loading" role="status"><span class="spinner"></span> Se încarcă…</div>';
-const privateLinks = [['/acasa','home','Acasă'],['/caiet','book','Caiet'],['/adauga','plus','Adaugă'],['/profil','user','Profil']];
+const privateLinks = [['/acasa','home','Acasă'],['/caiet','book','Caiet'],['/panel','plus','Adaugă'],['/profil','user','Profil']];
 const fileInput = 'accept="application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp"';
 
 let captchaLoader;
@@ -193,6 +194,20 @@ function landing() {
   </section>`;
 }
 
+function policyCheckbox() {
+  return `<label class="policy-check"><input required type="checkbox" name="policy" value="${safe(config.policyVersion || '')}">
+    <span>Accept <a href="/termeni" target="_blank" rel="noopener">Termenii și condițiile</a> și confirm că am citit <a href="/confidentialitate" target="_blank" rel="noopener">Politica de confidențialitate</a>.</span></label>`;
+}
+
+function complaintsPage() {
+  return `<section class="paper-panel form-panel"><h1>Reclamații</h1>
+    <p>Spune-ne ce s-a întâmplat. Echipa primește mesajul și adresa contului tău pentru a-ți putea răspunde.</p>
+    <form data-action="complaints/send"><label>Mesaj<textarea name="message" rows="6" minlength="10" maxlength="3000" required></textarea></label>
+    <p class="muted">Evită parolele, codurile de acces și datele personale ale altcuiva.</p>
+    <button class="button primary">Trimite reclamația</button><div data-feedback aria-live="polite"></div></form>
+    <p>Poți scrie și direct la <a href="mailto:pescurt.info@gmail.com">pescurt.info@gmail.com</a>.</p></section>`;
+}
+
 function authForm(path) {
   const signup = path === '/creeaza-cont';
   const forgot = path === '/recuperare';
@@ -213,12 +228,12 @@ function authForm(path) {
         ${forgot ? '' : `<label>Parolă<input type="password" name="password" autocomplete="${signup || reset ? 'new-password' : 'current-password'}"
           ${signup || reset ? 'minlength="8"' : ''} maxlength="72" required placeholder="••••••••"></label>`}
         ${!signup && !forgot && !reset ? '<a class="inline-link forgot" href="/recuperare" data-link>Ai uitat parola?</a>' : ''}
+        ${signup ? policyCheckbox() : ''}
         ${reset ? '' : '<div data-captcha></div>'}
         <button class="button primary full" type="submit">${signup ? 'Creează cont' : forgot ? 'Trimite pe email' : reset ? 'Salvează parola' : 'Autentifică-te'}</button>
       </fieldset><div data-feedback aria-live="polite"></div>
     </form>
     ${!forgot && !reset ? '<p><a class="inline-link" href="/cod" data-link>Intră cu un cod pe email</a></p><p><a class="inline-link" href="/cod?tip=signup" data-link>Retrimite confirmarea contului</a></p>' : ''}
-    ${signup ? '<p class="signup-legal">Înainte să creezi contul, citește <a href="/termeni" data-link>Termenii și condițiile</a> și <a href="/confidentialitate" data-link>Politica de confidențialitate</a>.</p>' : ''}
     <div class="auth-switch">${signup ? 'Ai deja cont? <a href="/login" data-link>Intră în cont</a>' :
       forgot || reset ? '<a href="' + (reset ? '/recuperare' : '/login') + '" data-link>' + (reset ? 'Cere alt link' : 'Înapoi la autentificare') + '</a>' :
       'Nu ai cont? <a href="/creeaza-cont" data-link>Creează cont</a>'}</div>
@@ -273,19 +288,19 @@ async function dashboard(ticket) {
   frame('/acasa', `<div class="dashboard-top"><section class="welcome"><div>
     <h1>Salut${account.name ? ', ' + safe(account.name.split(/\s+/)[0]) : ''}!</h1>
     <p>Adună materialele de la școală în caietul tău digital.</p>
-    ${buttonLink('/adauga','Adaugă document','primary','plus')}
+    ${buttonLink('/panel','Adaugă document','primary','plus')}
     </div><span class="welcome-art" aria-hidden="true">${icon('book')}</span></section>${usageCard()}</div>
     <section class="section-recent"><div class="section-heading"><h2>${icon('book')} Documente recente</h2><a href="/caiet" class="inline-link" data-link>Vezi caietul</a></div>
     <div id="recent">${loading()}</div></section>`);
   const {items} = await api('documents/list');
   if (ticket !== navigation) return;
   document.querySelector('#recent').innerHTML = items.length ? documentCards(items.slice(0,4)) :
-    empty('book','Caietul tău e gol','Adaugă primul document ca să începi.',buttonLink('/adauga','Adaugă document','secondary','plus'));
+    empty('book','Caietul tău e gol','Adaugă primul document ca să începi.',buttonLink('/panel','Adaugă document','secondary','plus'));
 }
 
 function notebookPage() {
   return `<section class="page-title title-with-action"><div><h1>Caietul meu</h1><p>Materialele tale de studiu, într-un singur loc.</p></div>
-    ${buttonLink('/adauga','Adaugă document','primary','plus')}</section>
+    ${buttonLink('/panel','Adaugă document','primary','plus')}</section>
     <label class="search">${icon('search')} <input id="notebook-search" type="search" placeholder="Caută după titlu sau materie" aria-label="Caută după titlu sau materie" maxlength="120"></label>
     <div id="notebook-results" aria-live="polite">${loading()}</div>`;
 }
@@ -387,8 +402,9 @@ function profilePage() {
 async function show(focus = false) {
   const ticket = ++navigation;
   let path = location.pathname.replace(/\/$/, '') || '/';
+  if (path === '/adauga') return go('/panel', true);
   const isDocument = /^\/document\/[^/]+$/.test(path);
-  const needsAccount = isDocument || ['/acasa','/caiet','/adauga','/profil'].includes(path);
+  const needsAccount = isDocument || ['/acasa','/caiet','/adauga','/panel','/reclamatii','/profil'].includes(path);
   document.title = (routeNames[path] || (isDocument ? 'Document' : 'Pagină indisponibilă')) + ' · PeScurt';
   if (path === '/confirma') {
     const params = new URLSearchParams(location.search);
@@ -403,10 +419,24 @@ async function show(focus = false) {
   else if (auth.recovery && needsAccount) {
     return go('/parola-noua', true);
   } else if (needsAccount && !auth.signedIn) {
-    return go('/login', true);
+    return go('/login' + (path === '/reclamatii' ? '?urmator=reclamatii' : ''), true);
   } else if (path === '/') frame(path, landing());
   else if (Object.hasOwn(legalCopy, path)) frame(path, legalPage(path));
   else if (['/login','/creeaza-cont','/recuperare','/parola-noua'].includes(path)) frame(path, authForm(path));
+  else if (path === '/reclamatii') frame(path, complaintsPage());
+  else if (path === '/panel') {
+    try {
+      const status = await api('policy/status');
+      if (ticket !== navigation) return;
+      uploadKind = 'note';
+      frame(path, status.accepted ? addPage() : `<section class="paper-panel form-panel"><h1>Înainte de prima încărcare</h1>
+        <form data-action="policy/accept">${policyCheckbox()}<button class="button primary">Continuă la încărcare</button><div data-feedback aria-live="polite"></div></form></section>`);
+    } catch (error) {
+      if (ticket !== navigation) return;
+      if (error.status === 401) return go('/login', true);
+      frame(path, notice(error.message, 'error'));
+    }
+  }
   else if (!needsAccount && path !== '/preturi') frame(path, empty('book','Pagina nu a fost găsită','Alege o pagină din meniu.',buttonLink('/','Mergi la Acasă')));
   else {
     frame(path, loading());
@@ -419,9 +449,7 @@ async function show(focus = false) {
         notebookOffset = 0;
         frame(path, notebookPage());
         await fetchNotebook();
-      } else if (path === '/adauga') {
-        uploadKind = 'note';
-        frame(path, addPage());
+
       } else if (path === '/profil') frame(path, profilePage());
       else if (isDocument) {
         const doc = await api('documents/get', {id: path.split('/').at(-1)});
@@ -528,6 +556,8 @@ root.addEventListener('submit', async event => {
     const result = await api(action, payload, action === 'documents/original');
     if (ticket !== navigation) return;
     if (!result) { if (feedback) feedback.replaceChildren(); return; }
+    if (action === 'policy/accept') return show();
+    if (action === 'complaints/send') form.reset();
     if (action === 'auth/logout') {
       auth = {};
       account = undefined;
@@ -537,7 +567,7 @@ root.addEventListener('submit', async event => {
     if (result.next) {
       auth = await api('auth/session');
       account = undefined;
-      return go(result.next === '/acasa' && nextPath === 'preturi' ? '/preturi' : result.next);
+      return go(result.next === '/panel' && ['preturi','reclamatii'].includes(nextPath) ? '/' + nextPath : result.next);
     }
     if (action === 'documents/add') return go('/document/' + result.id);
     if (action === 'documents/delete') return go('/caiet');

@@ -1,6 +1,8 @@
 import { timingSafeEqual } from 'node:crypto';
 import { appUrl, dayKey, hasAI, hasAuth, Problem, rpc, zone } from '../server/services.js';
 import { logout, publicAuth, session, updateAccount } from '../server/session.js';
+import { acknowledge, hasAcknowledged, policyVersion } from '../server/policy.js';
+import { submitComplaint } from '../server/complaints.js';
 import { protectAuth } from '../server/auth-protection.js';
 import { notebook } from '../server/notebook.js';
 import { admin, apply, isAdmin, latestStudent, purgeExpired } from '../server/students.js';
@@ -12,7 +14,7 @@ const extensions = {'application/pdf': 'pdf', 'image/png': 'png', 'image/jpeg': 
 
 function legalDetails() {
   const { LEGAL_OPERATOR_NAME, LEGAL_OPERATOR_ADDRESS, LEGAL_OPERATOR_REGISTRATION, LEGAL_CONTACT_EMAIL } = process.env;
-  return {name: LEGAL_OPERATOR_NAME, address: LEGAL_OPERATOR_ADDRESS, registration: LEGAL_OPERATOR_REGISTRATION, email: LEGAL_CONTACT_EMAIL};
+  return {name: LEGAL_OPERATOR_NAME, address: LEGAL_OPERATOR_ADDRESS, registration: LEGAL_OPERATOR_REGISTRATION, email: LEGAL_CONTACT_EMAIL || 'pescurt.info@gmail.com'};
 }
 
 async function readBody(req, limit) {
@@ -71,7 +73,7 @@ export default async function handler(req, res) {
   const route = group + '/' + (action || '');
   try {
     if (req.method === 'GET' && group === 'config' && !action) {
-      return write(res, 200, {auth: hasAuth, ai: hasAI, captchaSiteKey: process.env.TURNSTILE_SITE_KEY || '', zone, legal: legalDetails()});
+      return write(res, 200, {auth: hasAuth, ai: hasAI, policyVersion, captchaSiteKey: process.env.TURNSTILE_SITE_KEY || '', zone, legal: legalDetails()});
     }
     if (route === 'jobs/student-retention' && ['GET','POST'].includes(req.method)) {
       if (!hasAuth || !retentionAuthorized(req.headers.authorization)) throw new Problem(403, 'Acces interzis.');
@@ -95,6 +97,10 @@ export default async function handler(req, res) {
     if (route === 'auth/update') return write(res, 200, await updateAccount(current, input, res));
     if (current.recovery) throw new Problem(403, 'Setează o parolă nouă pentru a continua.');
     const user = current.user;
+    if (route === 'policy/status') return write(res, 200, {accepted: await hasAcknowledged(user.id)});
+    if (route === 'policy/accept') return write(res, 200, await acknowledge(user.id, input));
+    if (route === 'complaints/send') return write(res, 200, await submitComplaint(user, input));
+    if (route === 'documents/add' && !await hasAcknowledged(user.id)) throw new Problem(403, 'Citește și acceptă termenii în panoul de încărcare.');
     if (route === 'account/') {
       const usage = await rpc('account_usage', {p_user: user.id, p_day: dayKey()});
       const limit = 2;

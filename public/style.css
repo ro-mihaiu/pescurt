@@ -244,3 +244,7 @@ details summary { font-weight: 740; color: var(--green); cursor: pointer; min-he
 .donation-card { max-width: 620px; margin: 0 auto; padding: 30px; text-align: center; }
 .donation-card > .tile { margin: 0 auto 14px; }
 .donation-card .button { margin-top: 10px; }
+
+.policy-check { display:flex; flex-direction:row; align-items:flex-start; gap:.65rem; text-align:left; font-weight:400; }
+.policy-check input[type=checkbox] { width:1.25rem; height:1.25rem; min-height:0; flex:none; margin:.15rem 0 0; accent-color:#20583d; }
+.policy-check a { text-decoration:underline; }
