@@ -12,7 +12,7 @@ export const legalCopy = {
   '/confidentialitate': {
     intro: 'Versiunea din 21 noiembrie 2026. Această informare descrie folosirea datelor în PeScurt.',
     sections: [
-      ['Contul și materialele de studiu', '<p>Numele, adresa de email, datele de autentificare și materialele tale sunt folosite pentru a furniza serviciul solicitat. Supabase gestionează conturile și stocarea privată. Când ceri un rezumat, o explicație sau întrebări, materialul ales este transmis API-ului OpenAI pentru generarea rezultatului. Rezultatul este salvat în caiet.</p>'],
+      ['Contul și materialele de studiu', '<p>Numele, adresa de email, datele de autentificare și materialele tale sunt folosite pentru a furniza serviciul solicitat. Supabase gestionează conturile și stocarea privată. Când ceri un rezumat, o explicație sau întrebări, materialul ales este transmis serviciului Google Gemini API pentru generarea rezultatului. Nu încărca date sensibile sau date personale ale altor persoane. Condițiile de prelucrare ale furnizorului sunt disponibile în <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener noreferrer">termenii Gemini API</a>. Rezultatul este salvat în caiet.</p>'],
       
       
       ['De ce prelucrăm datele', '<p>Folosim datele contului și documentele pentru a furniza serviciul pe care îl soliciți (art. 6 alin. 1 lit. b GDPR). Pentru protejarea conturilor și prevenirea abuzurilor ne bazăm pe interesul legitim de a securiza serviciul (lit. f). Înregistrăm identificatorul contului, versiunea termenilor și data acceptării pentru a putea demonstra ce condiții au fost acceptate. Bifa de la înregistrare confirmă citirea informării și acceptarea termenilor.</p>'],

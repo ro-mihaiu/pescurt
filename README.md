@@ -24,6 +24,12 @@ Cererile de verificare trimise înainte de dezactivarea funcției rămân în st
 
 ## OpenAI și limite
 
+### Gemini
+
+Pentru Google Gemini, creează o cheie în Google AI Studio pentru proiectul PeScurt și setează pe server `GEMINI_API_KEY` și `GEMINI_MODEL` (identificatorul exact al unui model disponibil în proiect care acceptă text, imagini și PDF). În Vercel, adaugă variabilele în Settings → Environment Variables pentru mediul dorit, apoi redeploy. Nu pune cheia în public/ sau în Git. Numărul proiectului Google nu este o cheie API.
+
+Dacă `GEMINI_API_KEY` este setată, aplicația folosește Gemini și necesită `GEMINI_MODEL`; altfel folosește configurația OpenAI de mai jos. Gemini primește materialul doar la procesarea cerută de utilizator. Înainte de activarea în producție, actualizează informarea de confidențialitate pentru furnizorul folosit efectiv. Verifică generarea unui rezumat, unei explicații și a întrebărilor cu un material de test.
+
 Completează `OPENAI_API_KEY` și `OPENAI_MODEL` cu un model Responses API care acceptă imagini și PDF-uri. Aplicația trimite doar materialul de studiu la cererea utilizatorului. 
 
 Fișiere acceptate: PDF, JPG, PNG și WebP, până la 3 MB. Limita zilnică se aplică pe cont, la prima procesare reușită a fiecărui document în ziua respectivă. Acțiunile suplimentare pentru același document în aceeași zi și consultarea rezultatelor salvate nu consumă un loc nou. Ștergerea unui document procesat nu recuperează locul. Fusul orar se setează prin `APP_TIME_ZONE` (implicit `Europe/Bucharest`).
