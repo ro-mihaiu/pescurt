@@ -98,11 +98,24 @@ let captchaLoader;
 let currentWidget;
 let requestedEmail = '';
 function captchaApi() {
+  if (window.turnstile?.render) return Promise.resolve(window.turnstile);
   if (!captchaLoader) captchaLoader = new Promise((resolve, reject) => {
     const script = document.createElement('script');
+    const fail = () => {
+      clearTimeout(timer);
+      script.remove();
+      captchaLoader = undefined;
+      reject(new Error('Turnstile unavailable'));
+    };
+    const timer = setTimeout(fail, 15000);
     script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
-    script.onload = () => window.turnstile.ready(() => resolve(window.turnstile));
-    script.onerror = () => { script.remove(); captchaLoader = undefined; reject(new Error()); };
+    script.async = true;
+    script.onload = () => {
+      if (!window.turnstile?.render) return fail();
+      clearTimeout(timer);
+      resolve(window.turnstile);
+    };
+    script.onerror = fail;
     document.head.append(script);
   });
   return captchaLoader;
@@ -134,11 +147,36 @@ function frame(path, content) {
 function mountCaptcha() {
   const box = root.querySelector('[data-captcha]');
   if (!box) return;
-  if (!config.captchaSiteKey) { box.textContent = 'Verificarea anti-robot nu este configurată.'; return; }
+  box.innerHTML = '<div data-captcha-widget></div><p data-captcha-status role="status">Se încarcă verificarea anti-robot…</p><button type="button" class="button secondary compact" data-captcha-retry hidden>Reîncearcă verificarea</button>';
+  const status = box.querySelector('[data-captcha-status]');
+  const retry = box.querySelector('[data-captcha-retry]');
+  const report = (message, canRetry = false) => {
+    if (!box.isConnected) return;
+    status.textContent = message;
+    retry.hidden = !canRetry;
+  };
+  retry.addEventListener('click', () => {
+    if (currentWidget != null) window.turnstile?.remove(currentWidget);
+    currentWidget = undefined;
+    mountCaptcha();
+  });
+  if (!config.captchaSiteKey) { report('Verificarea anti-robot nu este configurată.'); return; }
   captchaApi().then(widget => {
     if (!box.isConnected) return;
-    currentWidget = widget.render(box, {sitekey: config.captchaSiteKey, action: 'pescurt_auth', size: 'flexible'});
-  }).catch(() => { box.textContent = 'Verificarea nu s-a încărcat. Reîncarcă pagina.'; });
+    currentWidget = widget.render(box.querySelector('[data-captcha-widget]'), {
+      sitekey: config.captchaSiteKey, action: 'pescurt_auth', size: 'flexible', language: 'ro',
+      callback: () => report('Verificare reușită. Poți continua.'),
+      'error-callback': code => {
+        report(code === '110200'
+          ? 'Verificarea funcționează pe pescurt.ro-mihaiu.xyz. Deschide site-ul la această adresă.'
+          : 'Verificarea nu a reușit (cod ' + code + '). Reîncearcă sau verifică dacă browserul blochează challenges.cloudflare.com.', true);
+        return true;
+      },
+      'expired-callback': () => report('Verificarea a expirat. Reîncearcă verificarea.', true),
+      'timeout-callback': () => report('Verificarea a durat prea mult. Reîncearcă.', true)
+    });
+    report('Completează verificarea anti-robot de mai sus.');
+  }).catch(() => report('Verificarea nu s-a încărcat. Verifică conexiunea și dacă browserul blochează challenges.cloudflare.com.', true));
 }
 
 function codeForm() {
@@ -544,6 +582,10 @@ root.addEventListener('submit', async event => {
   if (form.querySelector('[data-captcha]')) {
     payload.captcha = payload['cf-turnstile-response'] || '';
     delete payload['cf-turnstile-response'];
+    if (!payload.captcha) {
+      form.querySelector('[data-feedback]').innerHTML = notice('Așteaptă încărcarea și completează verificarea anti-robot. Dacă nu apare, apasă „Reîncearcă verificarea”.', 'error');
+      return;
+    }
   }
   if (action === 'auth/confirm') Object.assign(payload, displayedConfirmation);
   const buttons = [...form.querySelectorAll('button:not([disabled])')];
