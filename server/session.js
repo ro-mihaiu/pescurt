@@ -59,6 +59,9 @@ function passwordField(value, min = 8) {
   if (typeof value !== 'string' || value.length < min || Buffer.byteLength(value) > 72) {
     throw new Problem(400, 'Verifică parola. Pentru o parolă nouă, folosește cel puțin 8 caractere și maximum 72 de octeți.');
   }
+  if (min === 8 && /[^\p{L}\p{Nd}!.?\-]/u.test(value)) {
+    throw new Problem(400, 'Parola poate conține doar litere, cifre și semnele ! . ? -');
+  }
   return value;
 }
 

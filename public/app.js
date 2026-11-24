@@ -246,6 +246,9 @@ function complaintsPage() {
     <p>Poți scrie și direct la <a href="mailto:pescurt.info@gmail.com">pescurt.info@gmail.com</a>.</p></section>`;
 }
 
+const newPasswordHint = 'Minimum 8 caractere și maximum 72 de octeți. Folosește doar litere, cifre și semnele ! . ? -';
+const newPasswordAttrs = String.raw`minlength="8" pattern="[\p{L}\p{Nd}!.?\-]+" aria-describedby="password-hint"`;
+
 function authForm(path) {
   const signup = path === '/creeaza-cont';
   const forgot = path === '/recuperare';
@@ -264,7 +267,8 @@ function authForm(path) {
         ${signup ? '<label>Nume<input name="name" autocomplete="name" maxlength="80" required placeholder="Numele tău"></label>' : ''}
         ${reset ? '' : '<label>Email<input type="email" name="email" autocomplete="email" required maxlength="254" placeholder="nume@exemplu.ro"></label>'}
         ${forgot ? '' : `<label>Parolă<input type="password" name="password" autocomplete="${signup || reset ? 'new-password' : 'current-password'}"
-          ${signup || reset ? 'minlength="8"' : ''} maxlength="72" required placeholder="••••••••"></label>`}
+          ${signup || reset ? newPasswordAttrs : ''} maxlength="72" required placeholder="••••••••"></label>`}
+        ${signup || reset ? `<small id="password-hint">${newPasswordHint}</small>` : ''}
         ${!signup && !forgot && !reset ? '<a class="inline-link forgot" href="/recuperare" data-link>Ai uitat parola?</a>' : ''}
         ${signup ? policyCheckbox() : ''}
         ${reset ? '' : '<div data-captcha></div>'}
@@ -429,7 +433,8 @@ function profilePage() {
       <button class="button secondary">Salvează numele</button><div data-feedback aria-live="polite"></div></form>
     <details><summary>Schimbă parola</summary><form data-action="auth/update">
       <label>Parola actuală<input name="currentPassword" type="password" autocomplete="current-password" maxlength="72" required></label>
-      <label>Parola nouă<input name="password" type="password" autocomplete="new-password" minlength="8" maxlength="72" required></label>
+      <label>Parola nouă<input name="password" type="password" autocomplete="new-password" ${newPasswordAttrs} maxlength="72" required></label>
+      <small id="password-hint">${newPasswordHint}</small>
       <button class="button secondary">Schimbă parola</button><div data-feedback aria-live="polite"></div></form></details>
     <form data-action="auth/logout"><button class="button danger">Deconectează-te</button><div data-feedback aria-live="polite"></div></form>
   </section>
